@@ -1,5 +1,8 @@
 package com.incidentflow.incidentflow.incident.controller;
+import java.util.List;
+import com.incidentflow.incidentflow.incident.dto.UpdateStatusRequest;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -34,4 +37,21 @@ public class IncidentController {
     public Incident assignIncident(@PathVariable Long id,@Valid @RequestBody AssignIncidentRequest request) {
         return service.assignIncident(id, request.getAssignedTo(), request.getUserRole());
     }
+    
+
+    @GetMapping
+    public List<Incident> getAll() {
+    return service.getAllIncidents();
+    }
+
+    @GetMapping("/{id}")
+    public Incident getById(@PathVariable Long id) {
+        return service.getIncidentById(id);
+    }
+    @PutMapping("/{id}/status")
+    public Incident updateStatus(@PathVariable Long id,@Valid @RequestBody UpdateStatusRequest request) {
+        return service.updateStatus(id, request.getStatus(), request.getUserRole());
+    }
+
+
 }
