@@ -15,7 +15,9 @@ import com.incidentflow.incidentflow.incident.dto.AssignIncidentRequest;
 import com.incidentflow.incidentflow.incident.dto.CreateIncidentRequest;
 import com.incidentflow.incidentflow.incident.entity.Incident;
 import com.incidentflow.incidentflow.incident.service.IncidentService;
-
+import com.incidentflow.incidentflow.common.enums.IncidentStatus;
+import com.incidentflow.incidentflow.common.enums.Priority;
+import org.springframework.web.bind.annotation.RequestParam;
 import jakarta.validation.Valid;
 @RestController
 @RequestMapping("/api/incidents")
@@ -51,6 +53,15 @@ public class IncidentController {
     @PutMapping("/{id}/status")
     public Incident updateStatus(@PathVariable Long id,@Valid @RequestBody UpdateStatusRequest request) {
         return service.updateStatus(id, request.getStatus(), request.getUserRole());
+    }
+    @GetMapping("/search/status")
+    public List<Incident> getByStatus(@RequestParam IncidentStatus status) {
+        return service.getIncidentsByStatus(status);
+    }
+
+    @GetMapping("/search/priority")
+    public List<Incident> getByPriority(@RequestParam Priority priority) {
+        return service.getIncidentsByPriority(priority);
     }
 
 

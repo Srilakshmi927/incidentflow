@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import com.incidentflow.incidentflow.incident.dto.CreateIncidentRequest;
 import com.incidentflow.incidentflow.incident.entity.Incident;
 import com.incidentflow.incidentflow.incident.repository.IncidentRepository;
+import com.incidentflow.incidentflow.common.enums.Priority;
 
 @Service
 public class IncidentService {
@@ -43,14 +44,14 @@ public class IncidentService {
     }
 
     public Incident getIncidentById(Long id) {
-        return repo.findById(id)
+        return repo.findById(java.util.Objects.requireNonNull(id))
                 .orElseThrow(() -> new RuntimeException("Incident not found with id: " + id));
     }
 
 
     public Incident updateStatus(Long id, IncidentStatus newStatus, String userRole) {
 
-        Incident incident = repo.findById(id)
+        Incident incident = repo.findById(java.util.Objects.requireNonNull(id))
                 .orElseThrow(() -> new RuntimeException("Incident not found with id: " + id));
 
         if (!userRole.equalsIgnoreCase("ADMIN") && !userRole.equalsIgnoreCase("SUPPORT")) {
@@ -76,6 +77,14 @@ public class IncidentService {
 
         incident.setStatus(newStatus);
         return repo.save(incident);
+    }
+
+    public List<Incident> getIncidentsByStatus(IncidentStatus status) {
+        return repo.findByStatus(status);
+    }
+
+    public List<Incident> getIncidentsByPriority(Priority priority) {
+        return repo.findByPriority(priority);
     }
 
 }
