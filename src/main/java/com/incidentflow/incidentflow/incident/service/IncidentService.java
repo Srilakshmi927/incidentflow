@@ -8,9 +8,14 @@ import com.incidentflow.incidentflow.incident.dto.CreateIncidentRequest;
 import com.incidentflow.incidentflow.incident.entity.Incident;
 import com.incidentflow.incidentflow.incident.repository.IncidentRepository;
 import com.incidentflow.incidentflow.common.enums.Priority;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 @Service
 public class IncidentService {
+private static final Logger log = LoggerFactory.getLogger(IncidentService.class);
 
     private final IncidentRepository repo;
 
@@ -78,13 +83,21 @@ public class IncidentService {
         incident.setStatus(newStatus);
         return repo.save(incident);
     }
+    public Page<Incident> getIncidents(IncidentStatus status, Priority priority, Pageable pageable) {
 
-    public List<Incident> getIncidentsByStatus(IncidentStatus status) {
-        return repo.findByStatus(status);
+    log.info("Fetching incidents | status={} | priority={} | page={} | size={}",
+            status, priority, pageable.getPageNumber(), pageable.getPageSize());
+
+    if (status != null && priority != null) {
+        return repo.findByStatusAndPriority(status, priority, pageable);
+    }
+    if (status != null) {
+        return repo.findByStatus(status, pageable);
+    }
+    if (priority != null) {
+        return repo.findByPriority(priority, pageable);
     }
 
-    public List<Incident> getIncidentsByPriority(Priority priority) {
-        return repo.findByPriority(priority);
-    }
-
+    return repo.findAll(pageable);
+}
 }
