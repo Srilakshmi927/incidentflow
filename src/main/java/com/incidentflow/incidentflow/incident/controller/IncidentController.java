@@ -19,6 +19,11 @@ import com.incidentflow.incidentflow.common.enums.IncidentStatus;
 import com.incidentflow.incidentflow.common.enums.Priority;
 import org.springframework.web.bind.annotation.RequestParam;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.data.domain.Sort;
+
 @RestController
 @RequestMapping("/api/incidents")
 public class IncidentController {
@@ -42,9 +47,14 @@ public class IncidentController {
     
 
     @GetMapping
-    public List<Incident> getAll() {
-    return service.getAllIncidents();
+    public Page<Incident> getIncidents(
+            @RequestParam(required = false) IncidentStatus status,
+            @RequestParam(required = false) Priority priority,
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+
+        return service.getIncidents(status, priority, pageable);
     }
+
 
     @GetMapping("/{id}")
     public Incident getById(@PathVariable Long id) {
@@ -54,15 +64,7 @@ public class IncidentController {
     public Incident updateStatus(@PathVariable Long id,@Valid @RequestBody UpdateStatusRequest request) {
         return service.updateStatus(id, request.getStatus(), request.getUserRole());
     }
-    @GetMapping("/search/status")
-    public List<Incident> getByStatus(@RequestParam IncidentStatus status) {
-        return service.getIncidentsByStatus(status);
-    }
 
-    @GetMapping("/search/priority")
-    public List<Incident> getByPriority(@RequestParam Priority priority) {
-        return service.getIncidentsByPriority(priority);
-    }
 
 
 }

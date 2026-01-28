@@ -3,13 +3,17 @@ package com.incidentflow.incidentflow.incident.repository;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.incidentflow.incidentflow.incident.entity.Incident;
-import java.util.List;
 import com.incidentflow.incidentflow.common.enums.IncidentStatus;
 import com.incidentflow.incidentflow.common.enums.Priority;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 
 public interface IncidentRepository extends JpaRepository<Incident, Long> {
 
-    List<Incident> findByStatus(IncidentStatus status);
+    Page<Incident> findByStatus(IncidentStatus status, Pageable pageable);
 
-    List<Incident> findByPriority(Priority priority);
+    Page<Incident> findByPriority(Priority priority, Pageable pageable);
+
+    Page<Incident> findByStatusAndPriority(IncidentStatus status, Priority priority, Pageable pageable);
 }
