@@ -1,17 +1,21 @@
 package com.incidentflow.incidentflow.incident.service;
 import java.util.List;
-import com.incidentflow.incidentflow.common.enums.IncidentStatus;
 
-import org.springframework.stereotype.Service;
-
-import com.incidentflow.incidentflow.incident.dto.CreateIncidentRequest;
-import com.incidentflow.incidentflow.incident.entity.Incident;
-import com.incidentflow.incidentflow.incident.repository.IncidentRepository;
-import com.incidentflow.incidentflow.common.enums.Priority;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+
+import com.incidentflow.incidentflow.common.enums.IncidentStatus;
+import com.incidentflow.incidentflow.common.enums.Priority;
+import com.incidentflow.incidentflow.common.exception.BadRequestException;
+import com.incidentflow.incidentflow.common.exception.ForbiddenException;
+import com.incidentflow.incidentflow.common.exception.NotFoundException;
+import com.incidentflow.incidentflow.incident.dto.CreateIncidentRequest;
+import com.incidentflow.incidentflow.incident.entity.Incident;
+import com.incidentflow.incidentflow.incident.repository.IncidentRepository;
+
 
 @Service
 public class IncidentService {
@@ -34,9 +38,11 @@ private static final Logger log = LoggerFactory.getLogger(IncidentService.class)
     Incident incident = repo.findById(id)
             .orElseThrow(() -> new RuntimeException("Incident not found with id: " + id));
 
+
     // Simple role validation (simulate real-time rule)
     if (!userRole.equalsIgnoreCase("ADMIN") && !userRole.equalsIgnoreCase("SUPPORT")) {
-        throw new RuntimeException("User role is not authorized to assign incidents: " + userRole);
+        throw new ForbiddenException("User role is not authorized to assign incidents: " + userRole);
+
     }
 
     incident.setAssignedTo(assignedTo);
@@ -57,17 +63,19 @@ private static final Logger log = LoggerFactory.getLogger(IncidentService.class)
     public Incident updateStatus(Long id, IncidentStatus newStatus, String userRole) {
 
         Incident incident = repo.findById(java.util.Objects.requireNonNull(id))
-                .orElseThrow(() -> new RuntimeException("Incident not found with id: " + id));
+                .orElseThrow(() -> new NotFoundException("Incident not found with id: " + id));
 
         if (!userRole.equalsIgnoreCase("ADMIN") && !userRole.equalsIgnoreCase("SUPPORT")) {
-            throw new RuntimeException("User role is not authorized to update status: " + userRole);
+            throw new ForbiddenException("User role is not authorized to update status: " + userRole);
+
         }
 
         IncidentStatus current = incident.getStatus();
 
         // block changes after CLOSED
         if (current == IncidentStatus.CLOSED) {
-            throw new RuntimeException("Incident is CLOSED and cannot be updated");
+            throw new BadRequestException("Incident is CLOSED and cannot be updated");
+
         }
 
         // Allowed workflow transitions
@@ -77,7 +85,8 @@ private static final Logger log = LoggerFactory.getLogger(IncidentService.class)
                 (current == IncidentStatus.RESOLVED && newStatus == IncidentStatus.CLOSED);
 
         if (!valid) {
-            throw new RuntimeException("Invalid status transition: " + current + " -> " + newStatus);
+            throw new BadRequestException("Invalid status transition: " + current + " -> " + newStatus);
+
         }
 
         incident.setStatus(newStatus);
