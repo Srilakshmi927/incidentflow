@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>IncidentFlow - Incidents</title>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+  <header class="header">
+    <div class="brand">
+      <div class="logo">IF</div>
+      <div>
+        <h1>IncidentFlow</h1>
+        <p class="subtitle">Incident Management Dashboard</p>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+
+    <section class="card">
+      <div class="createCard">
+  <h2 class="sectionTitle">Create Incident</h2>
+
+  <form id="createForm" class="formGrid">
+    <label>
+      Title <span class="req">*</span>
+      <input id="titleInput" type="text" placeholder="e.g., VPN not connecting" maxlength="120" />
+    </label>
+
+    <label>
+      Priority <span class="req">*</span>
+      <select id="priorityInput">
+        <option value="">Select</option>
+        <option value="LOW">LOW</option>
+        <option value="MEDIUM">MEDIUM</option>
+        <option value="HIGH">HIGH</option>
+      </select>
+    </label>
+
+    <label class="full">
+      Description <span class="req">*</span>
+      <textarea id="descInput" rows="3" placeholder="Describe the issue..." maxlength="1000"></textarea>
+    </label>
+
+    <div class="actions full">
+      <button type="submit" class="btn">Create</button>
+      <button type="button" id="clearBtn" class="btn btn-secondary">Clear</button>
+      <span id="formMsg" class="formMsg"></span>
+    </div>
+  </form>
+
+  <hr class="divider" />
+</div>
+
+      <div class="toolbar">
+        <div class="filters">
+          <label>
+            Status
+            <select id="statusFilter">
+              <option value="">All</option>
+              <option value="OPEN">OPEN</option>
+              <option value="IN_PROGRESS">IN_PROGRESS</option>
+              <option value="RESOLVED">RESOLVED</option>
+              <option value="CLOSED">CLOSED</option>
+            </select>
+          </label>
+
+          <label>
+            Priority
+            <select id="priorityFilter">
+              <option value="">All</option>
+              <option value="LOW">LOW</option>
+              <option value="MEDIUM">MEDIUM</option>
+              <option value="HIGH">HIGH</option>
+            </select>
+          </label>
+
+          <label>
+            Sort
+            <select id="sortSelect">
+              <option value="createdAt,desc">Created (Newest)</option>
+              <option value="createdAt,asc">Created (Oldest)</option>
+              <option value="priority,asc">Priority (Low → High)</option>
+              <option value="priority,desc">Priority (High → Low)</option>
+            </select>
+          </label>
+
+          <button id="applyBtn" class="btn">Apply</button>
+          <button id="resetBtn" class="btn btn-secondary">Reset</button>
+        </div>
+
+        <div class="pageControls">
+          <label>
+            Page Size
+            <select id="pageSize">
+              <option value="5">5</option>
+              <option value="10" selected>10</option>
+              <option value="20">20</option>
+            </select>
+          </label>
+
+          <button id="prevBtn" class="btn btn-secondary">Prev</button>
+          <span id="pageInfo" class="pageInfo">Page 1 of 1</span>
+          <button id="nextBtn" class="btn btn-secondary">Next</button>
+        </div>
+      </div>
+
+      <div id="alert" class="alert hidden"></div>
+
+      <div class="tableWrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Title</th>
+              <th>Priority</th>
+              <th>Status</th>
+              <th>Assigned To</th>
+              <th>Created</th>
+            </tr>
+          </thead>
+          <tbody id="incidentsBody">
+            <!-- rows injected by JS -->
+          </tbody>
+        </table>
+      </div>
+
+      <div id="loading" class="loading hidden">Loading incidents...</div>
+      <div id="empty" class="empty hidden">No incidents found for the selected filters.</div>
+    </section>
+
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
