@@ -25,6 +25,14 @@ const priorityInput = document.getElementById("priorityInput");
 const descInput = document.getElementById("descInput");
 const clearBtn = document.getElementById("clearBtn");
 const formMsg = document.getElementById("formMsg");
+// Assign form elements
+const assignForm = document.getElementById("assignForm");
+const assignIncidentId = document.getElementById("assignIncidentId");
+const assignTo = document.getElementById("assignTo");
+const assignRole = document.getElementById("assignRole");
+const assignClearBtn = document.getElementById("assignClearBtn");
+const assignMsg = document.getElementById("assignMsg");
+
 
 function showAlert(msg) {
   alertBox.textContent = msg;
@@ -97,6 +105,18 @@ function clearForm() {
   priorityInput.value = "";
   descInput.value = "";
   setFormMsg("", null);
+}
+function setAssignMsg(message, type) {
+  assignMsg.textContent = message || "";
+  assignMsg.classList.remove("ok", "err");
+  if (type) assignMsg.classList.add(type);
+}
+
+function clearAssignForm() {
+  assignIncidentId.value = "";
+  assignTo.value = "";
+  assignRole.value = "";
+  setAssignMsg("", null);
 }
 
 async function loadIncidents() {
@@ -179,6 +199,49 @@ async function createIncident() {
     setFormMsg(e.message || "Unable to create incident.", "err");
   }
 }
+async function assignIncident() {
+  const id = String(assignIncidentId.value || "").trim();
+  const assignedTo = assignTo.value.trim();
+  const userRole = assignRole.value;
+
+  if (!id || Number(id) <= 0) return setAssignMsg("Incident ID is required.", "err");
+  if (!assignedTo) return setAssignMsg("Assign To is required.", "err");
+  if (!userRole) return setAssignMsg("User Role is required.", "err");
+
+  setAssignMsg("Assigning incident...", null);
+
+  const payload = { assignedTo, userRole };
+
+  try {
+    const res = await fetch(`${API_BASE}/${id}/assign`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      let msg = `Failed (${res.status})`;
+      try {
+        const errJson = await res.json();
+        msg = errJson.error || msg;
+      } catch {
+        const txt = await res.text();
+        if (txt) msg = txt;
+      }
+      throw new Error(msg);
+    }
+
+    setAssignMsg("Incident assigned successfully.", "ok");
+    clearAssignForm();
+
+    // refresh list to see the updated assignedTo
+    page = 0;
+    await loadIncidents();
+
+  } catch (e) {
+    setAssignMsg(e.message || "Unable to assign incident.", "err");
+  }
+}
 
 applyBtn.addEventListener("click", () => {
   page = 0;
@@ -214,6 +277,14 @@ createForm.addEventListener("submit", (e) => {
 
 clearBtn.addEventListener("click", () => {
   clearForm();
+});
+assignForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+  assignIncident();
+});
+
+assignClearBtn.addEventListener("click", () => {
+  clearAssignForm();
 });
 
 // initial load

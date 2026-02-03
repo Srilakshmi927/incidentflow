@@ -53,6 +53,39 @@
 
   <hr class="divider" />
 </div>
+<div class="assignCard">
+  <h2 class="sectionTitle">Assign Incident</h2>
+
+  <form id="assignForm" class="formGrid">
+    <label>
+      Incident ID <span class="req">*</span>
+      <input id="assignIncidentId" type="number" min="1" placeholder="e.g., 6" />
+    </label>
+
+    <label>
+      Assign To <span class="req">*</span>
+      <input id="assignTo" type="text" placeholder="e.g., anuhya" maxlength="60" />
+    </label>
+
+    <label>
+      User Role <span class="req">*</span>
+      <select id="assignRole">
+        <option value="">Select</option>
+        <option value="ADMIN">ADMIN</option>
+        <option value="SUPPORT">SUPPORT</option>
+        <option value="EMPLOYEE">EMPLOYEE</option>
+      </select>
+    </label>
+
+    <div class="actions full">
+      <button type="submit" class="btn">Assign</button>
+      <button type="button" id="assignClearBtn" class="btn btn-secondary">Clear</button>
+      <span id="assignMsg" class="formMsg"></span>
+    </div>
+  </form>
+
+  <hr class="divider" />
+</div>
 
       <div class="toolbar">
         <div class="filters">
