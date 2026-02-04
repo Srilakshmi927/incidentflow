@@ -86,6 +86,43 @@
 
   <hr class="divider" />
 </div>
+<div class="statusCard">
+  <h2 class="sectionTitle">Update Incident Status</h2>
+
+  <form id="statusForm" class="formGrid">
+    <label>
+      Incident ID <span class="req">*</span>
+      <input id="statusIncidentId" type="number" min="1" placeholder="e.g., 6" />
+    </label>
+
+    <label>
+      New Status <span class="req">*</span>
+      <select id="newStatus">
+        <option value="">Select</option>
+        <option value="IN_PROGRESS">IN_PROGRESS</option>
+        <option value="RESOLVED">RESOLVED</option>
+        <option value="CLOSED">CLOSED</option>
+      </select>
+    </label>
+
+    <label>
+      User Role <span class="req">*</span>
+      <select id="statusRole">
+        <option value="">Select</option>
+        <option value="ADMIN">ADMIN</option>
+        <option value="SUPPORT">SUPPORT</option>
+      </select>
+    </label>
+
+    <div class="actions full">
+      <button type="submit" class="btn">Update Status</button>
+      <button type="button" id="statusClearBtn" class="btn btn-secondary">Clear</button>
+      <span id="statusMsg" class="formMsg"></span>
+    </div>
+  </form>
+
+  <hr class="divider" />
+</div>
 
       <div class="toolbar">
         <div class="filters">
