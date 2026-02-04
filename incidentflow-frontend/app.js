@@ -2,6 +2,13 @@ const API_BASE = "http://localhost:8080/api/incidents";
 
 let page = 0;
 let totalPages = 1;
+// Status update form elements
+const statusForm = document.getElementById("statusForm");
+const statusIncidentId = document.getElementById("statusIncidentId");
+const newStatus = document.getElementById("newStatus");
+const statusRole = document.getElementById("statusRole");
+const statusClearBtn = document.getElementById("statusClearBtn");
+const statusMsg = document.getElementById("statusMsg");
 
 const incidentsBody = document.getElementById("incidentsBody");
 const statusFilter = document.getElementById("statusFilter");
@@ -117,6 +124,18 @@ function clearAssignForm() {
   assignTo.value = "";
   assignRole.value = "";
   setAssignMsg("", null);
+}
+function setStatusMsg(message, type) {
+  statusMsg.textContent = message || "";
+  statusMsg.classList.remove("ok", "err");
+  if (type) statusMsg.classList.add(type);
+}
+
+function clearStatusForm() {
+  statusIncidentId.value = "";
+  newStatus.value = "";
+  statusRole.value = "";
+  setStatusMsg("", null);
 }
 
 async function loadIncidents() {
@@ -242,6 +261,49 @@ async function assignIncident() {
     setAssignMsg(e.message || "Unable to assign incident.", "err");
   }
 }
+async function updateIncidentStatus() {
+  const id = String(statusIncidentId.value || "").trim();
+  const status = newStatus.value;
+  const userRole = statusRole.value;
+
+  if (!id || Number(id) <= 0) return setStatusMsg("Incident ID is required.", "err");
+  if (!status) return setStatusMsg("New status is required.", "err");
+  if (!userRole) return setStatusMsg("User role is required.", "err");
+
+  setStatusMsg("Updating status...", null);
+
+  const payload = { status, userRole };
+
+  try {
+    const res = await fetch(`${API_BASE}/${id}/status`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      let msg = `Failed (${res.status})`;
+      try {
+        const errJson = await res.json();
+        msg = errJson.error || msg;
+      } catch {
+        const txt = await res.text();
+        if (txt) msg = txt;
+      }
+      throw new Error(msg);
+    }
+
+    setStatusMsg("Status updated successfully.", "ok");
+    clearStatusForm();
+
+    // refresh table
+    page = 0;
+    await loadIncidents();
+
+  } catch (e) {
+    setStatusMsg(e.message || "Unable to update status.", "err");
+  }
+}
 
 applyBtn.addEventListener("click", () => {
   page = 0;
@@ -285,6 +347,14 @@ assignForm.addEventListener("submit", (e) => {
 
 assignClearBtn.addEventListener("click", () => {
   clearAssignForm();
+});
+statusForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+  updateIncidentStatus();
+});
+
+statusClearBtn.addEventListener("click", () => {
+  clearStatusForm();
 });
 
 // initial load

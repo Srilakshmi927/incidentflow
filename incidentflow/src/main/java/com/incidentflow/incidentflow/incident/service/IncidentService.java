@@ -59,39 +59,44 @@ private static final Logger log = LoggerFactory.getLogger(IncidentService.class)
                 .orElseThrow(() -> new RuntimeException("Incident not found with id: " + id));
     }
 
-
+    
     public Incident updateStatus(Long id, IncidentStatus newStatus, String userRole) {
 
-        Incident incident = repo.findById(java.util.Objects.requireNonNull(id))
-                .orElseThrow(() -> new NotFoundException("Incident not found with id: " + id));
+    Incident incident = repo.findById(java.util.Objects.requireNonNull(id))
+            .orElseThrow(() -> new NotFoundException("Incident not found with id: " + id));
 
-        if (!userRole.equalsIgnoreCase("ADMIN") && !userRole.equalsIgnoreCase("SUPPORT")) {
-            throw new ForbiddenException("User role is not authorized to update status: " + userRole);
-
-        }
-
-        IncidentStatus current = incident.getStatus();
-
-        // block changes after CLOSED
-        if (current == IncidentStatus.CLOSED) {
-            throw new BadRequestException("Incident is CLOSED and cannot be updated");
-
-        }
-
-        // Allowed workflow transitions
-        boolean valid =
-                (current == IncidentStatus.OPEN && newStatus == IncidentStatus.IN_PROGRESS) ||
-                (current == IncidentStatus.IN_PROGRESS && newStatus == IncidentStatus.RESOLVED) ||
-                (current == IncidentStatus.RESOLVED && newStatus == IncidentStatus.CLOSED);
-
-        if (!valid) {
-            throw new BadRequestException("Invalid status transition: " + current + " -> " + newStatus);
-
-        }
-
-        incident.setStatus(newStatus);
-        return repo.save(incident);
+    // Role validation
+    if (!userRole.equalsIgnoreCase("ADMIN") && !userRole.equalsIgnoreCase("SUPPORT")) {
+        throw new ForbiddenException("User role is not authorized to update status: " + userRole);
     }
+
+    if (incident.getAssignedTo() == null || incident.getAssignedTo().isBlank()) {
+        throw new BadRequestException(
+                "Incident must be assigned before changing status"
+        );
+    }
+
+    IncidentStatus current = incident.getStatus();
+
+    // block changes after CLOSED
+    if (current == IncidentStatus.CLOSED) {
+        throw new BadRequestException("Incident is CLOSED and cannot be updated");
+    }
+
+    // Allowed workflow transitions
+    boolean valid =
+            (current == IncidentStatus.OPEN && newStatus == IncidentStatus.IN_PROGRESS) ||
+            (current == IncidentStatus.IN_PROGRESS && newStatus == IncidentStatus.RESOLVED) ||
+            (current == IncidentStatus.RESOLVED && newStatus == IncidentStatus.CLOSED);
+
+    if (!valid) {
+        throw new BadRequestException("Invalid status transition: " + current + " -> " + newStatus);
+    }
+
+    incident.setStatus(newStatus);
+    return repo.save(incident);
+}
+
     public Page<Incident> getIncidents(IncidentStatus status, Priority priority, Pageable pageable) {
 
     log.info("Fetching incidents | status={} | priority={} | page={} | size={}",
