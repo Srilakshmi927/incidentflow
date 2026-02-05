@@ -159,3 +159,34 @@ td { font-size: 13px; }
 @media (max-width: 860px) {
   .formGrid { grid-template-columns: 1fr; }
 }
+.unassigned {
+  color: #ff9b9b;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+tr:hover {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+.actionsCell {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btn-sm {
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+}
+
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--border);
+}
+
+.rowHint {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 6px;
+}
