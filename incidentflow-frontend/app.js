@@ -68,19 +68,58 @@ function badge(text) {
 
 function renderRows(items) {
   incidentsBody.innerHTML = "";
+
+
   items.forEach(i => {
+    const isAssigned = i.assignedTo && i.assignedTo.trim() !== "";
+
     const tr = document.createElement("tr");
+
     tr.innerHTML = `
       <td>${i.id ?? "-"}</td>
       <td>${i.title ?? "-"}</td>
       <td>${badge(i.priority)}</td>
       <td>${badge(i.status)}</td>
-      <td>${i.assignedTo ? badge(i.assignedTo) : "-"}</td>
+      <td>${isAssigned ? badge(i.assignedTo) : "<span class='unassigned'>Unassigned</span>"}</td>
       <td>${formatDate(i.createdAt)}</td>
+      <td>
+        <div class="actionsCell">
+          <button class="btn btn-secondary btn-sm js-assign" type="button">Assign</button>
+          <button class="btn btn-ghost btn-sm js-status" type="button">Status</button>
+        </div>
+      </td>
     `;
+
+    // Row click = auto fill ID in both forms (quick use)
+    tr.addEventListener("click", (e) => {
+      // ignore clicks on buttons (buttons have their own handlers)
+      if (e.target.closest("button")) return;
+      fillAssignFormFromIncident(i);
+      fillStatusFormFromIncident(i);
+    });
+
+    // Assign button
+    tr.querySelector(".js-assign").addEventListener("click", () => {
+      fillAssignFormFromIncident(i);
+      // Helpful message
+      setAssignMsg(`Editing assignment for Incident #${i.id}`, null);
+    });
+
+    // Status button
+    tr.querySelector(".js-status").addEventListener("click", () => {
+      if (!isAssigned) {
+        setStatusMsg("Please assign the incident before changing its status.", "err");
+        fillStatusFormFromIncident(i);
+        return;
+      }
+      fillStatusFormFromIncident(i);
+      setStatusMsg(`Updating status for Incident #${i.id}`, null);
+    });
+
     incidentsBody.appendChild(tr);
   });
 }
+
 
 function updatePager() {
   pageInfo.textContent = `Page ${page + 1} of ${totalPages}`;
@@ -136,6 +175,20 @@ function clearStatusForm() {
   newStatus.value = "";
   statusRole.value = "";
   setStatusMsg("", null);
+}
+function fillAssignFormFromIncident(incident) {
+  assignIncidentId.value = incident.id ?? "";
+  assignTo.value = incident.assignedTo ?? "";
+  // Keep role as-is so user doesn't have to reselect every time
+  setAssignMsg("", null);
+  assignIncidentId.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+function fillStatusFormFromIncident(incident) {
+  statusIncidentId.value = incident.id ?? "";
+  // Keep role as-is, only set message
+  setStatusMsg("", null);
+  statusIncidentId.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
 async function loadIncidents() {
@@ -269,7 +322,15 @@ async function updateIncidentStatus() {
   if (!id || Number(id) <= 0) return setStatusMsg("Incident ID is required.", "err");
   if (!status) return setStatusMsg("New status is required.", "err");
   if (!userRole) return setStatusMsg("User role is required.", "err");
+const incidentRow = Array.from(document.querySelectorAll("#incidentsBody tr"))
+    .find(row => row.children[0].textContent.trim() === id);
 
+  if (incidentRow) {
+    const assignedCell = incidentRow.children[4].textContent.trim();
+    if (assignedCell === "Unassigned") {
+      return setStatusMsg("Please assign the incident before changing its status.", "err");
+    }
+  }
   setStatusMsg("Updating status...", null);
 
   const payload = { status, userRole };
