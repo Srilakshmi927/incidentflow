@@ -190,3 +190,44 @@ tr:hover {
   font-size: 12px;
   margin-top: 6px;
 }
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+
+.modalContent {
+  background: var(--card);
+  border-radius: 14px;
+  width: 500px;
+  max-width: 90%;
+  border: 1px solid var(--border);
+  padding: 16px;
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.modalBody p {
+  margin: 6px 0;
+  font-size: 14px;
+}
+
+.modalBody span {
+  color: var(--muted);
+}
+
+.hidden {
+  display: none;
+}

@@ -41,6 +41,9 @@ const assignClearBtn = document.getElementById("assignClearBtn");
 const assignMsg = document.getElementById("assignMsg");
 
 
+const incidentModal = document.getElementById("incidentModal");
+const modalBody = document.getElementById("modalBody");
+const closeModalBtn = document.getElementById("closeModalBtn");
 function showAlert(msg) {
   alertBox.textContent = msg;
   alertBox.classList.remove("hidden");
@@ -84,11 +87,16 @@ function renderRows(items) {
       <td>${formatDate(i.createdAt)}</td>
       <td>
         <div class="actionsCell">
-          <button class="btn btn-secondary btn-sm js-assign" type="button">Assign</button>
-          <button class="btn btn-ghost btn-sm js-status" type="button">Status</button>
-        </div>
+          <button class="btn btn-secondary btn-sm js-view">View</button>
+          <button class="btn btn-secondary btn-sm js-assign">Assign</button>
+          <button class="btn btn-ghost btn-sm js-status">Status</button>
+</div>
+
       </td>
     `;
+    tr.querySelector(".js-view").addEventListener("click", () => {
+      viewIncidentDetails(i.id);
+    });
 
     // Row click = auto fill ID in both forms (quick use)
     tr.addEventListener("click", (e) => {
@@ -189,6 +197,46 @@ function fillStatusFormFromIncident(incident) {
   // Keep role as-is, only set message
   setStatusMsg("", null);
   statusIncidentId.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+
+function openModal() {
+  if (!incidentModal) return;
+  incidentModal.classList.remove("hidden");
+}
+
+function closeModal() {
+  if (!incidentModal || !modalBody) return;
+  incidentModal.classList.add("hidden");
+  modalBody.innerHTML = "";
+}
+
+// ✅ Only attach event if button exists
+if (closeModalBtn) {
+  closeModalBtn.addEventListener("click", closeModal);
+}
+
+async function viewIncidentDetails(id) {
+  try {
+    const res = await fetch(`${API_BASE}/${id}`);
+    if (!res.ok) throw new Error("Failed to fetch incident details");
+
+    const i = await res.json();
+
+    modalBody.innerHTML = `
+      <p><strong>ID:</strong> <span>${i.id}</span></p>
+      <p><strong>Title:</strong> <span>${i.title}</span></p>
+      <p><strong>Description:</strong> <span>${i.description}</span></p>
+      <p><strong>Priority:</strong> <span>${i.priority}</span></p>
+      <p><strong>Status:</strong> <span>${i.status}</span></p>
+      <p><strong>Assigned To:</strong> <span>${i.assignedTo ?? "Unassigned"}</span></p>
+      <p><strong>Created At:</strong> <span>${formatDate(i.createdAt)}</span></p>
+    `;
+
+    openModal();
+  } catch (e) {
+    alert("Unable to load incident details");
+  }
 }
 
 async function loadIncidents() {
