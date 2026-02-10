@@ -114,4 +114,24 @@ private static final Logger log = LoggerFactory.getLogger(IncidentService.class)
 
     return repo.findAll(pageable);
 }
+
+public void deleteIncident(Long id, String userRole) {
+
+    if (!userRole.equalsIgnoreCase("ADMIN")) {
+        throw new ForbiddenException("Only ADMIN can delete incidents");
+    }
+
+    Incident incident = repo.findById(id)
+            .orElseThrow(() -> new NotFoundException("Incident not found with id: " + id));
+
+    if (incident.getStatus() != IncidentStatus.CLOSED) {
+        throw new BadRequestException(
+            "Only CLOSED incidents can be deleted. Current status: " + incident.getStatus()
+        );
+    }
+
+    repo.delete(incident);
+}
+
+
 }

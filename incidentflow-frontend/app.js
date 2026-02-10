@@ -39,12 +39,31 @@ const assignTo = document.getElementById("assignTo");
 const assignRole = document.getElementById("assignRole");
 const assignClearBtn = document.getElementById("assignClearBtn");
 const assignMsg = document.getElementById("assignMsg");
+const deleteModal = document.getElementById("deleteModal");
+const closeDeleteBtn = document.getElementById("closeDeleteBtn");
+const cancelDeleteBtn = document.getElementById("cancelDeleteBtn");
+const confirmDeleteBtn = document.getElementById("confirmDeleteBtn");
+const deleteText = document.getElementById("deleteText");
+const deleteRole = document.getElementById("deleteRole");
+
+let deleteIncidentId = null;
 
 
 const incidentModal = document.getElementById("incidentModal");
 const modalBody = document.getElementById("modalBody");
 const closeModalBtn = document.getElementById("closeModalBtn");
 const toastContainer = document.getElementById("toastContainer");
+function openDeleteModal(id) {
+  deleteIncidentId = id;
+  deleteText.textContent = `Are you sure you want to delete Incident #${id}? This action cannot be undone.`;
+  deleteRole.value = "";
+  deleteModal.classList.remove("hidden");
+}
+
+function closeDeleteModal() {
+  deleteModal.classList.add("hidden");
+  deleteIncidentId = null;
+}
 
 function showToast(message, type = "info") {
   if (!toastContainer) return;
@@ -101,18 +120,24 @@ function renderRows(items) {
       <td>${badge(i.status)}</td>
       <td>${isAssigned ? badge(i.assignedTo) : "<span class='unassigned'>Unassigned</span>"}</td>
       <td>${formatDate(i.createdAt)}</td>
-      <td>
-        <div class="actionsCell">
-          <button class="btn btn-secondary btn-sm js-view">View</button>
-          <button class="btn btn-secondary btn-sm js-assign">Assign</button>
-          <button class="btn btn-ghost btn-sm js-status">Status</button>
-</div>
+          
+      <div class="actionsCell">
+        <button class="btn btn-secondary btn-sm js-view" type="button">View</button>
+        <button class="btn btn-secondary btn-sm js-assign" type="button">Assign</button>
+        <button class="btn btn-ghost btn-sm js-status" type="button">Status</button>
+        <button class="btn btn-ghost btn-sm js-delete" type="button">Delete</button>
+      </div>
+
 
       </td>
     `;
     tr.querySelector(".js-view").addEventListener("click", () => {
       viewIncidentDetails(i.id);
+
     });
+      tr.querySelector(".js-delete").addEventListener("click", () => {
+  openDeleteModal(i.id);
+});
 
     // Row click = auto fill ID in both forms (quick use)
     tr.addEventListener("click", (e) => {
@@ -231,6 +256,46 @@ function closeModal() {
 if (closeModalBtn) {
   closeModalBtn.addEventListener("click", closeModal);
 }
+if (closeDeleteBtn) closeDeleteBtn.addEventListener("click", closeDeleteModal);
+if (cancelDeleteBtn) cancelDeleteBtn.addEventListener("click", closeDeleteModal);
+
+async function deleteIncidentById() {
+  if (!deleteIncidentId) return;
+
+  const role = deleteRole.value;
+  if (!role) {
+    showToast("Please select a role to continue", "error");
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/${deleteIncidentId}?userRole=${encodeURIComponent(role)}`, {
+      method: "DELETE"
+    });
+
+    if (!res.ok) {
+      let msg = `Delete failed (${res.status})`;
+      try {
+        const errJson = await res.json();
+        msg = errJson.error || msg;
+      } catch {
+        const txt = await res.text();
+        if (txt) msg = txt;
+      }
+      throw new Error(msg);
+    }
+
+    showToast(`Incident #${deleteIncidentId} deleted`, "success");
+    closeDeleteModal();
+    page = 0;
+    await loadIncidents();
+
+  } catch (e) {
+    showToast(e.message || "Unable to delete incident", "error");
+  }
+}
+
+if (confirmDeleteBtn) confirmDeleteBtn.addEventListener("click", deleteIncidentById);
 
 async function viewIncidentDetails(id) {
   try {

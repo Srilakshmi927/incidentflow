@@ -216,6 +216,35 @@
     <div id="modalBody" class="modalBody"></div>
   </div>
 </div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="modal hidden">
+  <div class="modalContent">
+    <div class="modalHeader">
+      <h3>Confirm Delete</h3>
+      <button id="closeDeleteBtn" class="btn btn-secondary btn-sm" type="button">Close</button>
+    </div>
+
+    <div class="modalBody">
+      <p id="deleteText"></p>
+
+      <label style="margin-top:10px; display:block;">
+        Admin Role Required
+        <select id="deleteRole">
+          <option value="">Select</option>
+          <option value="ADMIN">ADMIN</option>
+          <option value="SUPPORT">SUPPORT</option>
+        </select>
+      </label>
+
+      <div class="actions" style="margin-top:14px;">
+        <button id="confirmDeleteBtn" class="btn" type="button">Delete</button>
+        <button id="cancelDeleteBtn" class="btn btn-secondary" type="button">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Toast Notifications -->
 <div id="toastContainer" class="toastContainer"></div>
 
