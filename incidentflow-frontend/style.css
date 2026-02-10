@@ -231,3 +231,38 @@ tr:hover {
 .hidden {
   display: none;
 }
+.toastContainer {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.toast {
+  min-width: 260px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-size: 14px;
+  color: #fff;
+  animation: fadeIn 0.3s ease;
+}
+
+.toast.success {
+  background: #2ecc71;
+}
+
+.toast.error {
+  background: #e74c3c;
+}
+
+.toast.info {
+  background: #3498db;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
