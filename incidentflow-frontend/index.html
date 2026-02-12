@@ -244,6 +244,44 @@
     </div>
   </div>
 </div>
+<!-- Edit Incident Modal -->
+<div id="editModal" class="modal hidden">
+  <div class="modalContent">
+    <div class="modalHeader">
+      <h3>Edit Incident</h3>
+      <button id="closeEditBtn" class="btn btn-secondary btn-sm" type="button">Close</button>
+    </div>
+
+    <div class="modalBody">
+      <input type="hidden" id="editId">
+
+      <label>Title</label>
+      <input type="text" id="editTitle">
+
+      <label>Description</label>
+      <textarea id="editDescription"></textarea>
+
+      <label>Priority</label>
+      <select id="editPriority">
+        <option value="LOW">LOW</option>
+        <option value="MEDIUM">MEDIUM</option>
+        <option value="HIGH">HIGH</option>
+      </select>
+
+      <label>Role</label>
+      <select id="editRole">
+        <option value="">Select</option>
+        <option value="ADMIN">ADMIN</option>
+        <option value="SUPPORT">SUPPORT</option>
+      </select>
+
+      <div class="actions" style="margin-top:12px;">
+        <button id="saveEditBtn" class="btn">Save</button>
+        <button id="cancelEditBtn" class="btn btn-secondary">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- Toast Notifications -->
 <div id="toastContainer" class="toastContainer"></div>
