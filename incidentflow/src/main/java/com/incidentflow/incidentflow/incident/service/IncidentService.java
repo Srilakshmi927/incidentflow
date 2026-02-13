@@ -46,6 +46,9 @@ private static final Logger log = LoggerFactory.getLogger(IncidentService.class)
     }
 
     incident.setAssignedTo(assignedTo);
+incident.setLastUpdatedBy(userRole.toUpperCase());
+incident.setLastUpdatedAt(java.time.LocalDateTime.now());
+
     return repo.save(incident);
     }
 
@@ -94,6 +97,9 @@ private static final Logger log = LoggerFactory.getLogger(IncidentService.class)
     }
 
     incident.setStatus(newStatus);
+    incident.setLastUpdatedBy(userRole.toUpperCase());
+incident.setLastUpdatedAt(java.time.LocalDateTime.now());
+
     return repo.save(incident);
 }
 
@@ -153,6 +159,8 @@ public Incident updateIncidentDetails(Long id, Incident updatedIncident, String 
     existing.setTitle(updatedIncident.getTitle());
     existing.setDescription(updatedIncident.getDescription());
     existing.setPriority(updatedIncident.getPriority());
+existing.setLastUpdatedBy(userRole.toUpperCase());
+existing.setLastUpdatedAt(java.time.LocalDateTime.now());
 
     return repo.save(existing);
 }

@@ -1,10 +1,19 @@
 package com.incidentflow.incidentflow.incident.entity;
 
+import java.time.LocalDateTime;
+
 import com.incidentflow.incidentflow.common.enums.IncidentStatus;
 import com.incidentflow.incidentflow.common.enums.Priority;
-import jakarta.persistence.*;
 
-import java.time.LocalDateTime;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "incidents")
@@ -16,6 +25,17 @@ public class Incident {
 
     @Column(nullable = false, length = 120)
     private String title;
+@Column(name = "last_updated_by")
+private String lastUpdatedBy;
+
+@Column(name = "last_updated_at")
+private java.time.LocalDateTime lastUpdatedAt;
+
+public String getLastUpdatedBy() { return lastUpdatedBy; }
+public void setLastUpdatedBy(String lastUpdatedBy) { this.lastUpdatedBy = lastUpdatedBy; }
+
+public java.time.LocalDateTime getLastUpdatedAt() { return lastUpdatedAt; }
+public void setLastUpdatedAt(java.time.LocalDateTime lastUpdatedAt) { this.lastUpdatedAt = lastUpdatedAt; }
 
     @Column(nullable = false, length = 1000)
     private String description;

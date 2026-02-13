@@ -55,6 +55,19 @@ const editTitle = document.getElementById("editTitle");
 const editDescription = document.getElementById("editDescription");
 const editPriority = document.getElementById("editPriority");
 const editRole = document.getElementById("editRole");
+const detailsModal = document.getElementById("detailsModal");
+const closeDetailsBtn = document.getElementById("closeDetailsBtn");
+
+const detailId = document.getElementById("detailId");
+const detailTitle = document.getElementById("detailTitle");
+const detailDescription = document.getElementById("detailDescription");
+const detailStatus = document.getElementById("detailStatus");
+const detailPriority = document.getElementById("detailPriority");
+
+const detailUpdatedBy = document.getElementById("detailUpdatedBy");
+const detailUpdatedAt = document.getElementById("detailUpdatedAt");
+const editUpdatedBy = document.getElementById("editUpdatedBy");
+const editUpdatedAt = document.getElementById("editUpdatedAt");
 
 let deleteIncidentId = null;
 
@@ -70,6 +83,9 @@ function openEditModal(incident) {
   editDescription.value = incident.description;
   editPriority.value = incident.priority;
   editRole.value = "";
+  
+  if (editUpdatedBy) editUpdatedBy.textContent = incident.lastUpdatedBy || "N/A";
+  if (editUpdatedAt) editUpdatedAt.textContent = incident.lastUpdatedAt || "N/A";
   editModal.classList.remove("hidden");
 }
 
@@ -161,13 +177,24 @@ function renderRows(items) {
 
     });
 
-    tr.querySelector(".js-edit").addEventListener("click", () => {
-  openEditModal(i);
+    
+tr.querySelector(".js-edit").addEventListener("click", async () => {
+  try {
+    const res = await fetch(`${API_BASE}/${i.id}`);
+    const fullIncident = await res.json();
+    openEditModal(fullIncident);
+  } catch (e) {
+    showToast("Unable to load incident for edit", "error");
+  }
 });
 
       tr.querySelector(".js-delete").addEventListener("click", () => {
   openDeleteModal(i.id);
 });
+tr.querySelector(".js-view").addEventListener("click", () => {
+  openDetailsModal(i);
+});
+
 
     // Row click = auto fill ID in both forms (quick use)
     tr.addEventListener("click", (e) => {
@@ -269,6 +296,20 @@ function fillStatusFormFromIncident(incident) {
   setStatusMsg("", null);
   statusIncidentId.scrollIntoView({ behavior: "smooth", block: "center" });
 }
+function openDetailsModal(incident) {
+
+  detailId.textContent = incident.id;
+  detailTitle.textContent = incident.title;
+  detailDescription.textContent = incident.description;
+  detailStatus.textContent = incident.status;
+  detailPriority.textContent = incident.priority;
+
+  // NEW AUDIT FIELDS
+  detailUpdatedBy.textContent = incident.lastUpdatedBy || "N/A";
+  detailUpdatedAt.textContent = incident.lastUpdatedAt || "N/A";
+
+  detailsModal.classList.remove("hidden");
+}
 
 
 function openModal() {
@@ -283,6 +324,11 @@ function closeModal() {
 }
 if (closeEditBtn) closeEditBtn.addEventListener("click", closeEditModal);
 if (cancelEditBtn) cancelEditBtn.addEventListener("click", closeEditModal);
+if (closeDetailsBtn) {
+  closeDetailsBtn.addEventListener("click", () => {
+    detailsModal.classList.add("hidden");
+  });
+}
 
 // ✅ Only attach event if button exists
 if (closeModalBtn) {
@@ -318,10 +364,18 @@ async function saveEditedIncident() {
       throw new Error(err.error || "Update failed");
     }
 
-    showToast("Incident updated successfully", "success");
-    closeEditModal();
-    await loadIncidents();
+const updated = await res.json();
 
+showToast("Incident updated successfully", "success");
+
+// ✅ update audit fields shown in edit modal
+if (editUpdatedBy) editUpdatedBy.textContent = updated.lastUpdatedBy || "N/A";
+if (editUpdatedAt) editUpdatedAt.textContent = updated.lastUpdatedAt || "N/A";
+
+// optionally close modal after showing updated audit
+closeEditModal();
+
+    await loadIncidents();
   } catch (e) {
     showToast(e.message, "error");
   }
@@ -382,6 +436,9 @@ async function viewIncidentDetails(id) {
       <p><strong>Status:</strong> <span>${i.status}</span></p>
       <p><strong>Assigned To:</strong> <span>${i.assignedTo ?? "Unassigned"}</span></p>
       <p><strong>Created At:</strong> <span>${formatDate(i.createdAt)}</span></p>
+      
+  <p><strong>Last Updated By:</strong> <span>${i.lastUpdatedBy ?? "N/A"}</span></p>
+  <p><strong>Last Updated At:</strong> <span>${i.lastUpdatedAt ?? "N/A"}</span></p>
     `;
 
     openModal();
