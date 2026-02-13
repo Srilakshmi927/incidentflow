@@ -1,4 +1,5 @@
 package com.incidentflow.incidentflow.incident.controller;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -34,6 +35,8 @@ import jakarta.validation.Valid;
 public class IncidentController {
 
     private final IncidentService service;
+@Autowired
+private IncidentService incidentService;
 
     public IncidentController(IncidentService service) {
         this.service = service;
@@ -78,6 +81,15 @@ public class IncidentController {
     public ResponseEntity<Void> deleteIncident(@PathVariable Long id, @RequestParam String userRole) {
         service.deleteIncident(id, userRole);
         return ResponseEntity.noContent().build();
+    }
+    @PutMapping("/{id}")
+    public ResponseEntity<Incident> updateIncident(
+            @PathVariable Long id,
+            @RequestBody Incident updatedIncident,
+            @RequestParam String userRole) {
+
+        Incident updated = incidentService.updateIncidentDetails(id, updatedIncident, userRole);
+        return ResponseEntity.ok(updated);
     }
 
 

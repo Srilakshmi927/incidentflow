@@ -46,6 +46,9 @@ private static final Logger log = LoggerFactory.getLogger(IncidentService.class)
     }
 
     incident.setAssignedTo(assignedTo);
+incident.setLastUpdatedBy(userRole.toUpperCase());
+incident.setLastUpdatedAt(java.time.LocalDateTime.now());
+
     return repo.save(incident);
     }
 
@@ -94,6 +97,9 @@ private static final Logger log = LoggerFactory.getLogger(IncidentService.class)
     }
 
     incident.setStatus(newStatus);
+    incident.setLastUpdatedBy(userRole.toUpperCase());
+incident.setLastUpdatedAt(java.time.LocalDateTime.now());
+
     return repo.save(incident);
 }
 
@@ -132,6 +138,33 @@ public void deleteIncident(Long id, String userRole) {
 
     repo.delete(incident);
 }
+public Incident updateIncidentDetails(Long id, Incident updatedIncident, String userRole) {
+
+    if (!userRole.equalsIgnoreCase("ADMIN") &&
+        !userRole.equalsIgnoreCase("SUPPORT")) {
+        throw new ForbiddenException("Only ADMIN or SUPPORT can edit incidents");
+    }
+
+    Incident existing = repo.findById(id)
+            .orElseThrow(() -> new NotFoundException("Incident not found with id: " + id));
+
+    if (existing.getStatus() == IncidentStatus.CLOSED) {
+        throw new BadRequestException("Closed incidents cannot be edited");
+    }
+
+    if (updatedIncident.getTitle() == null || updatedIncident.getTitle().isBlank()) {
+        throw new BadRequestException("Title cannot be empty");
+    }
+
+    existing.setTitle(updatedIncident.getTitle());
+    existing.setDescription(updatedIncident.getDescription());
+    existing.setPriority(updatedIncident.getPriority());
+existing.setLastUpdatedBy(userRole.toUpperCase());
+existing.setLastUpdatedAt(java.time.LocalDateTime.now());
+
+    return repo.save(existing);
+}
+
 
 
 }

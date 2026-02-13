@@ -45,6 +45,29 @@ const cancelDeleteBtn = document.getElementById("cancelDeleteBtn");
 const confirmDeleteBtn = document.getElementById("confirmDeleteBtn");
 const deleteText = document.getElementById("deleteText");
 const deleteRole = document.getElementById("deleteRole");
+const editModal = document.getElementById("editModal");
+const closeEditBtn = document.getElementById("closeEditBtn");
+const cancelEditBtn = document.getElementById("cancelEditBtn");
+const saveEditBtn = document.getElementById("saveEditBtn");
+
+const editId = document.getElementById("editId");
+const editTitle = document.getElementById("editTitle");
+const editDescription = document.getElementById("editDescription");
+const editPriority = document.getElementById("editPriority");
+const editRole = document.getElementById("editRole");
+const detailsModal = document.getElementById("detailsModal");
+const closeDetailsBtn = document.getElementById("closeDetailsBtn");
+
+const detailId = document.getElementById("detailId");
+const detailTitle = document.getElementById("detailTitle");
+const detailDescription = document.getElementById("detailDescription");
+const detailStatus = document.getElementById("detailStatus");
+const detailPriority = document.getElementById("detailPriority");
+
+const detailUpdatedBy = document.getElementById("detailUpdatedBy");
+const detailUpdatedAt = document.getElementById("detailUpdatedAt");
+const editUpdatedBy = document.getElementById("editUpdatedBy");
+const editUpdatedAt = document.getElementById("editUpdatedAt");
 
 let deleteIncidentId = null;
 
@@ -53,6 +76,23 @@ const incidentModal = document.getElementById("incidentModal");
 const modalBody = document.getElementById("modalBody");
 const closeModalBtn = document.getElementById("closeModalBtn");
 const toastContainer = document.getElementById("toastContainer");
+
+function openEditModal(incident) {
+  editId.value = incident.id;
+  editTitle.value = incident.title;
+  editDescription.value = incident.description;
+  editPriority.value = incident.priority;
+  editRole.value = "";
+  
+  if (editUpdatedBy) editUpdatedBy.textContent = incident.lastUpdatedBy || "N/A";
+  if (editUpdatedAt) editUpdatedAt.textContent = incident.lastUpdatedAt || "N/A";
+  editModal.classList.remove("hidden");
+}
+
+function closeEditModal() {
+  editModal.classList.add("hidden");
+}
+
 function openDeleteModal(id) {
   deleteIncidentId = id;
   deleteText.textContent = `Are you sure you want to delete Incident #${id}? This action cannot be undone.`;
@@ -125,6 +165,7 @@ function renderRows(items) {
         <button class="btn btn-secondary btn-sm js-view" type="button">View</button>
         <button class="btn btn-secondary btn-sm js-assign" type="button">Assign</button>
         <button class="btn btn-ghost btn-sm js-status" type="button">Status</button>
+        <button class="btn btn-secondary btn-sm js-edit" type="button">Edit</button>
         <button class="btn btn-ghost btn-sm js-delete" type="button">Delete</button>
       </div>
 
@@ -135,9 +176,25 @@ function renderRows(items) {
       viewIncidentDetails(i.id);
 
     });
+
+    
+tr.querySelector(".js-edit").addEventListener("click", async () => {
+  try {
+    const res = await fetch(`${API_BASE}/${i.id}`);
+    const fullIncident = await res.json();
+    openEditModal(fullIncident);
+  } catch (e) {
+    showToast("Unable to load incident for edit", "error");
+  }
+});
+
       tr.querySelector(".js-delete").addEventListener("click", () => {
   openDeleteModal(i.id);
 });
+tr.querySelector(".js-view").addEventListener("click", () => {
+  openDetailsModal(i);
+});
+
 
     // Row click = auto fill ID in both forms (quick use)
     tr.addEventListener("click", (e) => {
@@ -153,7 +210,7 @@ function renderRows(items) {
       // Helpful message
       setAssignMsg(`Editing assignment for Incident #${i.id}`, null);
     });
-
+    
     // Status button
     tr.querySelector(".js-status").addEventListener("click", () => {
       if (!isAssigned) {
@@ -239,6 +296,20 @@ function fillStatusFormFromIncident(incident) {
   setStatusMsg("", null);
   statusIncidentId.scrollIntoView({ behavior: "smooth", block: "center" });
 }
+function openDetailsModal(incident) {
+
+  detailId.textContent = incident.id;
+  detailTitle.textContent = incident.title;
+  detailDescription.textContent = incident.description;
+  detailStatus.textContent = incident.status;
+  detailPriority.textContent = incident.priority;
+
+  // NEW AUDIT FIELDS
+  detailUpdatedBy.textContent = incident.lastUpdatedBy || "N/A";
+  detailUpdatedAt.textContent = incident.lastUpdatedAt || "N/A";
+
+  detailsModal.classList.remove("hidden");
+}
 
 
 function openModal() {
@@ -251,6 +322,13 @@ function closeModal() {
   incidentModal.classList.add("hidden");
   modalBody.innerHTML = "";
 }
+if (closeEditBtn) closeEditBtn.addEventListener("click", closeEditModal);
+if (cancelEditBtn) cancelEditBtn.addEventListener("click", closeEditModal);
+if (closeDetailsBtn) {
+  closeDetailsBtn.addEventListener("click", () => {
+    detailsModal.classList.add("hidden");
+  });
+}
 
 // ✅ Only attach event if button exists
 if (closeModalBtn) {
@@ -258,6 +336,52 @@ if (closeModalBtn) {
 }
 if (closeDeleteBtn) closeDeleteBtn.addEventListener("click", closeDeleteModal);
 if (cancelDeleteBtn) cancelDeleteBtn.addEventListener("click", closeDeleteModal);
+async function saveEditedIncident() {
+
+  const id = editId.value;
+  const role = editRole.value;
+
+  if (!role) {
+    showToast("Please select role", "error");
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/${id}?userRole=${encodeURIComponent(role)}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        title: editTitle.value,
+        description: editDescription.value,
+        priority: editPriority.value
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || "Update failed");
+    }
+
+const updated = await res.json();
+
+showToast("Incident updated successfully", "success");
+
+// ✅ update audit fields shown in edit modal
+if (editUpdatedBy) editUpdatedBy.textContent = updated.lastUpdatedBy || "N/A";
+if (editUpdatedAt) editUpdatedAt.textContent = updated.lastUpdatedAt || "N/A";
+
+// optionally close modal after showing updated audit
+closeEditModal();
+
+    await loadIncidents();
+  } catch (e) {
+    showToast(e.message, "error");
+  }
+}
+
+if (saveEditBtn) saveEditBtn.addEventListener("click", saveEditedIncident);
 
 async function deleteIncidentById() {
   if (!deleteIncidentId) return;
@@ -312,6 +436,9 @@ async function viewIncidentDetails(id) {
       <p><strong>Status:</strong> <span>${i.status}</span></p>
       <p><strong>Assigned To:</strong> <span>${i.assignedTo ?? "Unassigned"}</span></p>
       <p><strong>Created At:</strong> <span>${formatDate(i.createdAt)}</span></p>
+      
+  <p><strong>Last Updated By:</strong> <span>${i.lastUpdatedBy ?? "N/A"}</span></p>
+  <p><strong>Last Updated At:</strong> <span>${i.lastUpdatedAt ?? "N/A"}</span></p>
     `;
 
     openModal();
