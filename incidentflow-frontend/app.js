@@ -77,6 +77,7 @@ const dashClosed = document.getElementById("dashClosed");
 const dashHigh = document.getElementById("dashHigh");
 const statusChart = document.getElementById("statusChart");
 const refreshChartBtn = document.getElementById("refreshChartBtn");
+const exportDashboardBtn = document.getElementById("exportDashboardBtn");
 
 let deleteIncidentId = null;
 
@@ -85,6 +86,53 @@ const incidentModal = document.getElementById("incidentModal");
 const modalBody = document.getElementById("modalBody");
 const closeModalBtn = document.getElementById("closeModalBtn");
 const toastContainer = document.getElementById("toastContainer");
+function downloadCSV(filename, rows) {
+  const processRow = (row) =>
+    row.map(value => {
+      const v = value === null || value === undefined ? "" : String(value);
+      const escaped = v.replace(/"/g, '""');
+      return `"${escaped}"`;
+    }).join(",");
+
+  const csvContent = rows.map(processRow).join("\n");
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  link.click();
+}
+async function exportDashboardCSV() {
+  try {
+    const res = await fetch(`${API_BASE}/dashboard`);
+    if (!res.ok) throw new Error("Failed to load dashboard data");
+
+    const d = await res.json();
+
+    const generatedAt = new Date().toISOString();
+    const rows = [
+      ["Generated At", generatedAt],
+      [],
+      ["Metric", "Count"],
+      ["Total", d.total],
+      ["Open", d.open],
+      ["In Progress", d.inProgress],
+      ["Resolved", d.resolved],
+      ["Closed", d.closed],
+      ["High Priority", d.highPriority]
+    ];
+
+    const today = new Date().toISOString().slice(0, 10);
+    downloadCSV(`incidentflow_dashboard_${today}.csv`, rows);
+
+    showToast("Dashboard CSV exported successfully", "success");
+  } catch (e) {
+    showToast(e.message || "Dashboard export failed", "error");
+  }
+}
+if (exportDashboardBtn) {
+  exportDashboardBtn.addEventListener("click", exportDashboardCSV);
+}
 
 function drawBarChart(canvas, labels, values) {
   if (!canvas) return;
