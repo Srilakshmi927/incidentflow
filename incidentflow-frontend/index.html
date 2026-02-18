@@ -18,6 +18,55 @@
   </header>
 
   <main class="container">
+  <section class="dashboard">
+  <div class="dashCard">
+    <h4>Total</h4>
+    <p id="dashTotal">0</p>
+  </div>
+
+  <div class="dashCard">
+    <h4>Open</h4>
+    <p id="dashOpen">0</p>
+  </div>
+
+  <div class="dashCard">
+    <h4>In Progress</h4>
+    <p id="dashInProgress">0</p>
+  </div>
+
+  <div class="dashCard">
+    <h4>Resolved</h4>
+    <p id="dashResolved">0</p>
+  </div>
+
+  <div class="dashCard">
+    <h4>Closed</h4>
+    <p id="dashClosed">0</p>
+  </div>
+
+  <div class="dashCard high">
+    <h4>High Priority</h4>
+    <p id="dashHigh">0</p>
+  </div>
+</section>
+<section class="card" style="margin-bottom: 18px;">
+  
+<div style="display:flex; justify-content:space-between; align-items:center;">
+  <h2 class="sectionTitle" style="margin:0;">Status Distribution</h2>
+
+  <div style="display:flex; gap:10px;">
+    <button id="refreshChartBtn" class="btn btn-secondary" type="button">Refresh Chart</button>
+    <button id="exportDashboardBtn" class="btn btn-secondary" type="button">Export Dashboard CSV</button>
+  </div>
+</div>
+
+  <div style="margin-top:14px;">
+    <canvas id="statusChart" width="900" height="260"></canvas>
+    <p class="subtitle" style="margin-top:10px;">
+      This chart shows current incident counts by status (Open, In Progress, Resolved, Closed).
+    </p>
+  </div>
+</section>
 
     <section class="card">
       <div class="createCard">
@@ -160,6 +209,8 @@
 
           <button id="applyBtn" class="btn">Apply</button>
           <button id="resetBtn" class="btn btn-secondary">Reset</button>
+          <button id="exportBtn" class="btn btn-secondary">Export CSV</button>
+
         </div>
 
         <div class="pageControls">

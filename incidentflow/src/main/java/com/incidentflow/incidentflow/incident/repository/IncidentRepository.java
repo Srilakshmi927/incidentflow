@@ -10,6 +10,9 @@ import org.springframework.data.domain.Pageable;
 
 
 public interface IncidentRepository extends JpaRepository<Incident, Long> {
+long countByStatus(IncidentStatus status);
+
+long countByPriority(Priority priority);
 
     Page<Incident> findByStatus(IncidentStatus status, Pageable pageable);
 

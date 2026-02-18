@@ -13,6 +13,7 @@ import com.incidentflow.incidentflow.common.exception.BadRequestException;
 import com.incidentflow.incidentflow.common.exception.ForbiddenException;
 import com.incidentflow.incidentflow.common.exception.NotFoundException;
 import com.incidentflow.incidentflow.incident.dto.CreateIncidentRequest;
+import com.incidentflow.incidentflow.incident.dto.DashboardSummary;
 import com.incidentflow.incidentflow.incident.entity.Incident;
 import com.incidentflow.incidentflow.incident.repository.IncidentRepository;
 
@@ -164,6 +165,18 @@ existing.setLastUpdatedAt(java.time.LocalDateTime.now());
 
     return repo.save(existing);
 }
+public DashboardSummary getDashboardSummary() {
+
+    long total = repo.count();
+    long open = repo.countByStatus(IncidentStatus.OPEN);
+    long inProgress = repo.countByStatus(IncidentStatus.IN_PROGRESS);
+    long resolved = repo.countByStatus(IncidentStatus.RESOLVED);
+    long closed = repo.countByStatus(IncidentStatus.CLOSED);
+    long highPriority = repo.countByPriority(Priority.HIGH);
+
+    return new DashboardSummary(total, open, inProgress, resolved, closed, highPriority);
+}
+
 
 
 

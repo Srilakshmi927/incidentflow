@@ -9,6 +9,7 @@ const newStatus = document.getElementById("newStatus");
 const statusRole = document.getElementById("statusRole");
 const statusClearBtn = document.getElementById("statusClearBtn");
 const statusMsg = document.getElementById("statusMsg");
+const exportBtn = document.getElementById("exportBtn");
 
 const incidentsBody = document.getElementById("incidentsBody");
 const statusFilter = document.getElementById("statusFilter");
@@ -68,6 +69,15 @@ const detailUpdatedBy = document.getElementById("detailUpdatedBy");
 const detailUpdatedAt = document.getElementById("detailUpdatedAt");
 const editUpdatedBy = document.getElementById("editUpdatedBy");
 const editUpdatedAt = document.getElementById("editUpdatedAt");
+const dashTotal = document.getElementById("dashTotal");
+const dashOpen = document.getElementById("dashOpen");
+const dashInProgress = document.getElementById("dashInProgress");
+const dashResolved = document.getElementById("dashResolved");
+const dashClosed = document.getElementById("dashClosed");
+const dashHigh = document.getElementById("dashHigh");
+const statusChart = document.getElementById("statusChart");
+const refreshChartBtn = document.getElementById("refreshChartBtn");
+const exportDashboardBtn = document.getElementById("exportDashboardBtn");
 
 let deleteIncidentId = null;
 
@@ -76,6 +86,153 @@ const incidentModal = document.getElementById("incidentModal");
 const modalBody = document.getElementById("modalBody");
 const closeModalBtn = document.getElementById("closeModalBtn");
 const toastContainer = document.getElementById("toastContainer");
+function downloadCSV(filename, rows) {
+  const processRow = (row) =>
+    row.map(value => {
+      const v = value === null || value === undefined ? "" : String(value);
+      const escaped = v.replace(/"/g, '""');
+      return `"${escaped}"`;
+    }).join(",");
+
+  const csvContent = rows.map(processRow).join("\n");
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  link.click();
+}
+async function exportDashboardCSV() {
+  try {
+    const res = await fetch(`${API_BASE}/dashboard`);
+    if (!res.ok) throw new Error("Failed to load dashboard data");
+
+    const d = await res.json();
+
+    const generatedAt = new Date().toISOString();
+    const rows = [
+      ["Generated At", generatedAt],
+      [],
+      ["Metric", "Count"],
+      ["Total", d.total],
+      ["Open", d.open],
+      ["In Progress", d.inProgress],
+      ["Resolved", d.resolved],
+      ["Closed", d.closed],
+      ["High Priority", d.highPriority]
+    ];
+
+    const today = new Date().toISOString().slice(0, 10);
+    downloadCSV(`incidentflow_dashboard_${today}.csv`, rows);
+
+    showToast("Dashboard CSV exported successfully", "success");
+  } catch (e) {
+    showToast(e.message || "Dashboard export failed", "error");
+  }
+}
+if (exportDashboardBtn) {
+  exportDashboardBtn.addEventListener("click", exportDashboardCSV);
+}
+
+function drawBarChart(canvas, labels, values) {
+  if (!canvas) return;
+
+  const ctx = canvas.getContext("2d");
+  const w = canvas.width;
+  const h = canvas.height;
+
+  // clear
+  ctx.clearRect(0, 0, w, h);
+
+  // padding
+  const padLeft = 60;
+  const padRight = 20;
+  const padTop = 30;
+  const padBottom = 50;
+
+  const chartW = w - padLeft - padRight;
+  const chartH = h - padTop - padBottom;
+
+  const maxVal = Math.max(...values, 1); // avoid divide by 0
+  const barCount = values.length;
+  const gap = 18;
+  const barW = (chartW - gap * (barCount - 1)) / barCount;
+
+  // axis
+  ctx.font = "14px Arial";
+  ctx.fillStyle = "#333";
+  ctx.strokeStyle = "#999";
+
+  // y-axis
+  ctx.beginPath();
+  ctx.moveTo(padLeft, padTop);
+  ctx.lineTo(padLeft, padTop + chartH);
+  ctx.stroke();
+
+  // x-axis
+  ctx.beginPath();
+  ctx.moveTo(padLeft, padTop + chartH);
+  ctx.lineTo(padLeft + chartW, padTop + chartH);
+  ctx.stroke();
+
+  // y-axis ticks (0, mid, max)
+  const ticks = [0, Math.round(maxVal / 2), maxVal];
+  ctx.fillStyle = "#555";
+  ticks.forEach(t => {
+    const y = padTop + chartH - (t / maxVal) * chartH;
+    ctx.beginPath();
+    ctx.moveTo(padLeft - 6, y);
+    ctx.lineTo(padLeft, y);
+    ctx.stroke();
+    ctx.fillText(String(t), 10, y + 5);
+  });
+
+  // bars
+  values.forEach((v, idx) => {
+    const barH = (v / maxVal) * chartH;
+    const x = padLeft + idx * (barW + gap);
+    const y = padTop + chartH - barH;
+
+    // bar (default browser color) - no custom palette
+    ctx.fillStyle = "#3b82f6";
+    ctx.fillRect(x, y, barW, barH);
+
+    // value label
+    ctx.fillStyle = "#111";
+    ctx.fillText(String(v), x + barW / 2 - 5, y - 8);
+
+    // x labels
+    ctx.fillStyle = "#333";
+    ctx.save();
+    ctx.translate(x + barW / 2, padTop + chartH + 20);
+    ctx.rotate(0);
+    ctx.textAlign = "center";
+    ctx.fillText(labels[idx], 0, 0);
+    ctx.restore();
+  });
+
+  // title
+  ctx.fillStyle = "#111";
+  ctx.font = "16px Arial";
+  ctx.fillText("Incident Status Counts", padLeft, 20);
+}
+
+function downloadCSV(filename, rows) {
+  const processRow = (row) =>
+    row.map(value => {
+      const v = value === null || value === undefined ? "" : String(value);
+      const escaped = v.replace(/"/g, '""');
+      return `"${escaped}"`;
+    }).join(",");
+
+  const csvContent = rows.map(processRow).join("\n");
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  link.click();
+}
 
 function openEditModal(incident) {
   editId.value = incident.id;
@@ -375,13 +532,99 @@ if (editUpdatedAt) editUpdatedAt.textContent = updated.lastUpdatedAt || "N/A";
 // optionally close modal after showing updated audit
 closeEditModal();
 
-    await loadIncidents();
+    await refreshAll();
+
   } catch (e) {
     showToast(e.message, "error");
   }
 }
 
 if (saveEditBtn) saveEditBtn.addEventListener("click", saveEditedIncident);
+async function loadDashboard() {
+  try {
+    const res = await fetch(`${API_BASE}/dashboard`);
+    const data = await res.json();
+
+    dashTotal.textContent = data.total;
+    dashOpen.textContent = data.open;
+    dashInProgress.textContent = data.inProgress;
+    dashResolved.textContent = data.resolved;
+    dashClosed.textContent = data.closed;
+    dashHigh.textContent = data.highPriority;
+
+  } catch (e) {
+    console.error("Dashboard load failed");
+  }
+}
+async function loadStatusChart() {
+  try {
+    const res = await fetch(`${API_BASE}/dashboard`);
+    if (!res.ok) throw new Error("Failed to load dashboard summary");
+
+    const d = await res.json();
+
+    const labels = ["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED"];
+    const values = [d.open, d.inProgress, d.resolved, d.closed];
+
+    drawBarChart(statusChart, labels, values);
+
+  } catch (e) {
+    console.error(e);
+    showToast("Unable to load chart data", "error");
+  }
+}
+if (refreshChartBtn) {
+  refreshChartBtn.addEventListener("click", loadStatusChart);
+}
+
+async function exportIncidentsCSV() {
+  try {
+    // use current filters
+    const status = statusFilter.value || "";
+    const priority = priorityFilter.value || "";
+    const sort = sortSelect.value || "createdAt,desc";
+
+    const url = `${API_BASE}?status=${encodeURIComponent(status)}&priority=${encodeURIComponent(priority)}&page=0&size=1000&sort=${encodeURIComponent(sort)}`;
+
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("Failed to fetch incidents for export");
+
+    const data = await res.json();
+    const incidents = data.content || [];
+
+    if (!incidents.length) {
+      showToast("No incidents found to export", "error");
+      return;
+    }
+
+    const rows = [];
+    rows.push([
+      "ID", "Title", "Priority", "Status", "Assigned To",
+      "Created At", "Last Updated By", "Last Updated At"
+    ]);
+
+    incidents.forEach(i => {
+      rows.push([
+        i.id,
+        i.title,
+        i.priority,
+        i.status,
+        i.assignedTo || "",
+        i.createdAt || "",
+        i.lastUpdatedBy || "",
+        i.lastUpdatedAt || ""
+      ]);
+    });
+
+    const today = new Date().toISOString().slice(0,10);
+    downloadCSV(`incidentflow_export_${today}.csv`, rows);
+
+    showToast("CSV exported successfully", "success");
+
+  } catch (e) {
+    showToast(e.message || "Export failed", "error");
+  }
+}
 
 async function deleteIncidentById() {
   if (!deleteIncidentId) return;
@@ -412,7 +655,8 @@ async function deleteIncidentById() {
     showToast(`Incident #${deleteIncidentId} deleted`, "success");
     closeDeleteModal();
     page = 0;
-    await loadIncidents();
+await refreshAll();
+
 
   } catch (e) {
     showToast(e.message || "Unable to delete incident", "error");
@@ -420,6 +664,9 @@ async function deleteIncidentById() {
 }
 
 if (confirmDeleteBtn) confirmDeleteBtn.addEventListener("click", deleteIncidentById);
+if (exportBtn) {
+  exportBtn.addEventListener("click", exportIncidentsCSV);
+}
 
 async function viewIncidentDetails(id) {
   try {
@@ -445,6 +692,11 @@ async function viewIncidentDetails(id) {
   } catch (e) {
     alert("Unable to load incident details");
   }
+}
+async function refreshAll() {
+  await loadIncidents();
+  await loadDashboard();
+  await loadStatusChart();
 }
 
 async function loadIncidents() {
@@ -522,7 +774,8 @@ async function createIncident() {
 
     // Refresh list (go back to page 0 to see newest items)
     page = 0;
-    await loadIncidents();
+    await refreshAll();
+
 
   } catch (e) {
     showToast(e.message|| "Unable to create incident.", "error");
@@ -567,7 +820,8 @@ async function assignIncident() {
 
     // refresh list to see the updated assignedTo
     page = 0;
-    await loadIncidents();
+    await refreshAll();
+
 
   } catch (e) {
     showToast(e.message  || "Unable to assign incident.", "error");
@@ -618,7 +872,8 @@ const incidentRow = Array.from(document.querySelectorAll("#incidentsBody tr"))
 
     // refresh table
     page = 0;
-    await loadIncidents();
+    await refreshAll();
+
 
   } catch (e) {
     showToast(e.message || "Unable to update status.", "error");
@@ -628,6 +883,8 @@ const incidentRow = Array.from(document.querySelectorAll("#incidentsBody tr"))
 applyBtn.addEventListener("click", () => {
   page = 0;
   loadIncidents();
+  loadDashboard();
+
 });
 
 resetBtn.addEventListener("click", () => {
@@ -637,12 +894,16 @@ resetBtn.addEventListener("click", () => {
   pageSize.value = "10";
   page = 0;
   loadIncidents();
+  loadDashboard();
+
 });
 
 prevBtn.addEventListener("click", () => {
   if (page > 0) {
     page--;
     loadIncidents();
+    loadDashboard();
+
   }
 });
 
@@ -650,6 +911,8 @@ nextBtn.addEventListener("click", () => {
   if (page < totalPages - 1) {
     page++;
     loadIncidents();
+    loadDashboard();
+
   }
 });
 createForm.addEventListener("submit", (e) => {
@@ -678,4 +941,6 @@ statusClearBtn.addEventListener("click", () => {
 });
 
 // initial load
-loadIncidents();
+refreshAll();
+
+

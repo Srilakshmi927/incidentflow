@@ -246,7 +246,7 @@ tr:hover {
   padding: 12px 14px;
   border-radius: 12px;
   font-size: 14px;
-  color: #fff;
+  color: #3c04e4;
   animation: fadeIn 0.3s ease;
 }
 
@@ -265,4 +265,42 @@ tr:hover {
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
+}
+.dashboard {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.dashCard {
+  background: rgb(139, 191, 244);
+  padding: 16px;
+  border-radius: 14px;
+  text-align: center;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.06);
+}
+
+.dashCard h4 {
+  margin: 0;
+  font-size: 14px;
+  color: #5309d2;
+}
+
+.dashCard p {
+  font-size: 22px;
+  font-weight: 600;
+  margin-top: 6px;
+}
+
+.dashCard.high {
+  border: 2px solid #e74c3c;
+}
+#statusChart {
+  width: 100%;
+  max-width: 100%;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 8px;
 }
