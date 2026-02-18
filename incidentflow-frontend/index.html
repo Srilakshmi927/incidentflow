@@ -49,6 +49,19 @@
     <p id="dashHigh">0</p>
   </div>
 </section>
+<section class="card" style="margin-bottom: 18px;">
+  <div style="display:flex; justify-content:space-between; align-items:center;">
+    <h2 class="sectionTitle" style="margin:0;">Status Distribution</h2>
+    <button id="refreshChartBtn" class="btn btn-secondary" type="button">Refresh Chart</button>
+  </div>
+
+  <div style="margin-top:14px;">
+    <canvas id="statusChart" width="900" height="260"></canvas>
+    <p class="subtitle" style="margin-top:10px;">
+      This chart shows current incident counts by status (Open, In Progress, Resolved, Closed).
+    </p>
+  </div>
+</section>
 
     <section class="card">
       <div class="createCard">

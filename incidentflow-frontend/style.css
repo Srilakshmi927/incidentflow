@@ -296,3 +296,11 @@ tr:hover {
 .dashCard.high {
   border: 2px solid #e74c3c;
 }
+#statusChart {
+  width: 100%;
+  max-width: 100%;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 8px;
+}

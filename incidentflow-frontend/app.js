@@ -75,6 +75,8 @@ const dashInProgress = document.getElementById("dashInProgress");
 const dashResolved = document.getElementById("dashResolved");
 const dashClosed = document.getElementById("dashClosed");
 const dashHigh = document.getElementById("dashHigh");
+const statusChart = document.getElementById("statusChart");
+const refreshChartBtn = document.getElementById("refreshChartBtn");
 
 let deleteIncidentId = null;
 
@@ -83,6 +85,90 @@ const incidentModal = document.getElementById("incidentModal");
 const modalBody = document.getElementById("modalBody");
 const closeModalBtn = document.getElementById("closeModalBtn");
 const toastContainer = document.getElementById("toastContainer");
+
+function drawBarChart(canvas, labels, values) {
+  if (!canvas) return;
+
+  const ctx = canvas.getContext("2d");
+  const w = canvas.width;
+  const h = canvas.height;
+
+  // clear
+  ctx.clearRect(0, 0, w, h);
+
+  // padding
+  const padLeft = 60;
+  const padRight = 20;
+  const padTop = 30;
+  const padBottom = 50;
+
+  const chartW = w - padLeft - padRight;
+  const chartH = h - padTop - padBottom;
+
+  const maxVal = Math.max(...values, 1); // avoid divide by 0
+  const barCount = values.length;
+  const gap = 18;
+  const barW = (chartW - gap * (barCount - 1)) / barCount;
+
+  // axis
+  ctx.font = "14px Arial";
+  ctx.fillStyle = "#333";
+  ctx.strokeStyle = "#999";
+
+  // y-axis
+  ctx.beginPath();
+  ctx.moveTo(padLeft, padTop);
+  ctx.lineTo(padLeft, padTop + chartH);
+  ctx.stroke();
+
+  // x-axis
+  ctx.beginPath();
+  ctx.moveTo(padLeft, padTop + chartH);
+  ctx.lineTo(padLeft + chartW, padTop + chartH);
+  ctx.stroke();
+
+  // y-axis ticks (0, mid, max)
+  const ticks = [0, Math.round(maxVal / 2), maxVal];
+  ctx.fillStyle = "#555";
+  ticks.forEach(t => {
+    const y = padTop + chartH - (t / maxVal) * chartH;
+    ctx.beginPath();
+    ctx.moveTo(padLeft - 6, y);
+    ctx.lineTo(padLeft, y);
+    ctx.stroke();
+    ctx.fillText(String(t), 10, y + 5);
+  });
+
+  // bars
+  values.forEach((v, idx) => {
+    const barH = (v / maxVal) * chartH;
+    const x = padLeft + idx * (barW + gap);
+    const y = padTop + chartH - barH;
+
+    // bar (default browser color) - no custom palette
+    ctx.fillStyle = "#3b82f6";
+    ctx.fillRect(x, y, barW, barH);
+
+    // value label
+    ctx.fillStyle = "#111";
+    ctx.fillText(String(v), x + barW / 2 - 5, y - 8);
+
+    // x labels
+    ctx.fillStyle = "#333";
+    ctx.save();
+    ctx.translate(x + barW / 2, padTop + chartH + 20);
+    ctx.rotate(0);
+    ctx.textAlign = "center";
+    ctx.fillText(labels[idx], 0, 0);
+    ctx.restore();
+  });
+
+  // title
+  ctx.fillStyle = "#111";
+  ctx.font = "16px Arial";
+  ctx.fillText("Incident Status Counts", padLeft, 20);
+}
+
 function downloadCSV(filename, rows) {
   const processRow = (row) =>
     row.map(value => {
@@ -422,6 +508,27 @@ async function loadDashboard() {
     console.error("Dashboard load failed");
   }
 }
+async function loadStatusChart() {
+  try {
+    const res = await fetch(`${API_BASE}/dashboard`);
+    if (!res.ok) throw new Error("Failed to load dashboard summary");
+
+    const d = await res.json();
+
+    const labels = ["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED"];
+    const values = [d.open, d.inProgress, d.resolved, d.closed];
+
+    drawBarChart(statusChart, labels, values);
+
+  } catch (e) {
+    console.error(e);
+    showToast("Unable to load chart data", "error");
+  }
+}
+if (refreshChartBtn) {
+  refreshChartBtn.addEventListener("click", loadStatusChart);
+}
+
 async function exportIncidentsCSV() {
   try {
     // use current filters
@@ -541,6 +648,7 @@ async function viewIncidentDetails(id) {
 async function refreshAll() {
   await loadIncidents();
   await loadDashboard();
+  await loadStatusChart();
 }
 
 async function loadIncidents() {
