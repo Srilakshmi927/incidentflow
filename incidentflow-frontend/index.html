@@ -18,6 +18,37 @@
   </header>
 
   <main class="container">
+  <section class="dashboard">
+  <div class="dashCard">
+    <h4>Total</h4>
+    <p id="dashTotal">0</p>
+  </div>
+
+  <div class="dashCard">
+    <h4>Open</h4>
+    <p id="dashOpen">0</p>
+  </div>
+
+  <div class="dashCard">
+    <h4>In Progress</h4>
+    <p id="dashInProgress">0</p>
+  </div>
+
+  <div class="dashCard">
+    <h4>Resolved</h4>
+    <p id="dashResolved">0</p>
+  </div>
+
+  <div class="dashCard">
+    <h4>Closed</h4>
+    <p id="dashClosed">0</p>
+  </div>
+
+  <div class="dashCard high">
+    <h4>High Priority</h4>
+    <p id="dashHigh">0</p>
+  </div>
+</section>
 
     <section class="card">
       <div class="createCard">
@@ -160,6 +191,8 @@
 
           <button id="applyBtn" class="btn">Apply</button>
           <button id="resetBtn" class="btn btn-secondary">Reset</button>
+          <button id="exportBtn" class="btn btn-secondary">Export CSV</button>
+
         </div>
 
         <div class="pageControls">

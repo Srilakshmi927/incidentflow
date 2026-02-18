@@ -21,6 +21,7 @@ import com.incidentflow.incidentflow.common.enums.IncidentStatus;
 import com.incidentflow.incidentflow.common.enums.Priority;
 import com.incidentflow.incidentflow.incident.dto.AssignIncidentRequest;
 import com.incidentflow.incidentflow.incident.dto.CreateIncidentRequest;
+import com.incidentflow.incidentflow.incident.dto.DashboardSummary;
 import com.incidentflow.incidentflow.incident.dto.UpdateStatusRequest;
 import com.incidentflow.incidentflow.incident.entity.Incident;
 import com.incidentflow.incidentflow.incident.service.IncidentService;
@@ -91,6 +92,10 @@ private IncidentService incidentService;
         Incident updated = incidentService.updateIncidentDetails(id, updatedIncident, userRole);
         return ResponseEntity.ok(updated);
     }
+    @GetMapping("/dashboard")
+public ResponseEntity<DashboardSummary> getDashboardSummary() {
+    return ResponseEntity.ok(incidentService.getDashboardSummary());
+}
 
 
 

@@ -9,6 +9,7 @@ const newStatus = document.getElementById("newStatus");
 const statusRole = document.getElementById("statusRole");
 const statusClearBtn = document.getElementById("statusClearBtn");
 const statusMsg = document.getElementById("statusMsg");
+const exportBtn = document.getElementById("exportBtn");
 
 const incidentsBody = document.getElementById("incidentsBody");
 const statusFilter = document.getElementById("statusFilter");
@@ -68,6 +69,12 @@ const detailUpdatedBy = document.getElementById("detailUpdatedBy");
 const detailUpdatedAt = document.getElementById("detailUpdatedAt");
 const editUpdatedBy = document.getElementById("editUpdatedBy");
 const editUpdatedAt = document.getElementById("editUpdatedAt");
+const dashTotal = document.getElementById("dashTotal");
+const dashOpen = document.getElementById("dashOpen");
+const dashInProgress = document.getElementById("dashInProgress");
+const dashResolved = document.getElementById("dashResolved");
+const dashClosed = document.getElementById("dashClosed");
+const dashHigh = document.getElementById("dashHigh");
 
 let deleteIncidentId = null;
 
@@ -76,6 +83,22 @@ const incidentModal = document.getElementById("incidentModal");
 const modalBody = document.getElementById("modalBody");
 const closeModalBtn = document.getElementById("closeModalBtn");
 const toastContainer = document.getElementById("toastContainer");
+function downloadCSV(filename, rows) {
+  const processRow = (row) =>
+    row.map(value => {
+      const v = value === null || value === undefined ? "" : String(value);
+      const escaped = v.replace(/"/g, '""');
+      return `"${escaped}"`;
+    }).join(",");
+
+  const csvContent = rows.map(processRow).join("\n");
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  link.click();
+}
 
 function openEditModal(incident) {
   editId.value = incident.id;
@@ -375,13 +398,78 @@ if (editUpdatedAt) editUpdatedAt.textContent = updated.lastUpdatedAt || "N/A";
 // optionally close modal after showing updated audit
 closeEditModal();
 
-    await loadIncidents();
+    await refreshAll();
+
   } catch (e) {
     showToast(e.message, "error");
   }
 }
 
 if (saveEditBtn) saveEditBtn.addEventListener("click", saveEditedIncident);
+async function loadDashboard() {
+  try {
+    const res = await fetch(`${API_BASE}/dashboard`);
+    const data = await res.json();
+
+    dashTotal.textContent = data.total;
+    dashOpen.textContent = data.open;
+    dashInProgress.textContent = data.inProgress;
+    dashResolved.textContent = data.resolved;
+    dashClosed.textContent = data.closed;
+    dashHigh.textContent = data.highPriority;
+
+  } catch (e) {
+    console.error("Dashboard load failed");
+  }
+}
+async function exportIncidentsCSV() {
+  try {
+    // use current filters
+    const status = statusFilter.value || "";
+    const priority = priorityFilter.value || "";
+    const sort = sortSelect.value || "createdAt,desc";
+
+    const url = `${API_BASE}?status=${encodeURIComponent(status)}&priority=${encodeURIComponent(priority)}&page=0&size=1000&sort=${encodeURIComponent(sort)}`;
+
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("Failed to fetch incidents for export");
+
+    const data = await res.json();
+    const incidents = data.content || [];
+
+    if (!incidents.length) {
+      showToast("No incidents found to export", "error");
+      return;
+    }
+
+    const rows = [];
+    rows.push([
+      "ID", "Title", "Priority", "Status", "Assigned To",
+      "Created At", "Last Updated By", "Last Updated At"
+    ]);
+
+    incidents.forEach(i => {
+      rows.push([
+        i.id,
+        i.title,
+        i.priority,
+        i.status,
+        i.assignedTo || "",
+        i.createdAt || "",
+        i.lastUpdatedBy || "",
+        i.lastUpdatedAt || ""
+      ]);
+    });
+
+    const today = new Date().toISOString().slice(0,10);
+    downloadCSV(`incidentflow_export_${today}.csv`, rows);
+
+    showToast("CSV exported successfully", "success");
+
+  } catch (e) {
+    showToast(e.message || "Export failed", "error");
+  }
+}
 
 async function deleteIncidentById() {
   if (!deleteIncidentId) return;
@@ -412,7 +500,8 @@ async function deleteIncidentById() {
     showToast(`Incident #${deleteIncidentId} deleted`, "success");
     closeDeleteModal();
     page = 0;
-    await loadIncidents();
+await refreshAll();
+
 
   } catch (e) {
     showToast(e.message || "Unable to delete incident", "error");
@@ -420,6 +509,9 @@ async function deleteIncidentById() {
 }
 
 if (confirmDeleteBtn) confirmDeleteBtn.addEventListener("click", deleteIncidentById);
+if (exportBtn) {
+  exportBtn.addEventListener("click", exportIncidentsCSV);
+}
 
 async function viewIncidentDetails(id) {
   try {
@@ -445,6 +537,10 @@ async function viewIncidentDetails(id) {
   } catch (e) {
     alert("Unable to load incident details");
   }
+}
+async function refreshAll() {
+  await loadIncidents();
+  await loadDashboard();
 }
 
 async function loadIncidents() {
@@ -522,7 +618,8 @@ async function createIncident() {
 
     // Refresh list (go back to page 0 to see newest items)
     page = 0;
-    await loadIncidents();
+    await refreshAll();
+
 
   } catch (e) {
     showToast(e.message|| "Unable to create incident.", "error");
@@ -567,7 +664,8 @@ async function assignIncident() {
 
     // refresh list to see the updated assignedTo
     page = 0;
-    await loadIncidents();
+    await refreshAll();
+
 
   } catch (e) {
     showToast(e.message  || "Unable to assign incident.", "error");
@@ -618,7 +716,8 @@ const incidentRow = Array.from(document.querySelectorAll("#incidentsBody tr"))
 
     // refresh table
     page = 0;
-    await loadIncidents();
+    await refreshAll();
+
 
   } catch (e) {
     showToast(e.message || "Unable to update status.", "error");
@@ -628,6 +727,8 @@ const incidentRow = Array.from(document.querySelectorAll("#incidentsBody tr"))
 applyBtn.addEventListener("click", () => {
   page = 0;
   loadIncidents();
+  loadDashboard();
+
 });
 
 resetBtn.addEventListener("click", () => {
@@ -637,12 +738,16 @@ resetBtn.addEventListener("click", () => {
   pageSize.value = "10";
   page = 0;
   loadIncidents();
+  loadDashboard();
+
 });
 
 prevBtn.addEventListener("click", () => {
   if (page > 0) {
     page--;
     loadIncidents();
+    loadDashboard();
+
   }
 });
 
@@ -650,6 +755,8 @@ nextBtn.addEventListener("click", () => {
   if (page < totalPages - 1) {
     page++;
     loadIncidents();
+    loadDashboard();
+
   }
 });
 createForm.addEventListener("submit", (e) => {
@@ -678,4 +785,6 @@ statusClearBtn.addEventListener("click", () => {
 });
 
 // initial load
-loadIncidents();
+refreshAll();
+
+

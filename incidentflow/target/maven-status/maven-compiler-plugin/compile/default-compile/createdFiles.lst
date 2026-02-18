@@ -14,3 +14,4 @@ com\incidentflow\incidentflow\incident\dto\CreateIncidentRequest.class
 com\incidentflow\incidentflow\common\exception\ForbiddenException.class
 com\incidentflow\incidentflow\common\exception\NotFoundException.class
 com\incidentflow\incidentflow\common\config\CorsConfig.class
+com\incidentflow\incidentflow\incident\dto\DashboardSummary.class
