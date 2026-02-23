@@ -78,6 +78,13 @@ const dashHigh = document.getElementById("dashHigh");
 const statusChart = document.getElementById("statusChart");
 const refreshChartBtn = document.getElementById("refreshChartBtn");
 const exportDashboardBtn = document.getElementById("exportDashboardBtn");
+const loginRole = document.getElementById("loginRole");
+const loginBtn = document.getElementById("loginBtn");
+const loginMsg = document.getElementById("loginMsg");
+const currentUserRole = document.getElementById("currentUserRole");
+const logoutBtn = document.getElementById("logoutBtn");
+const loginSection = document.getElementById("loginSection");
+
 
 let deleteIncidentId = null;
 
@@ -86,6 +93,49 @@ const incidentModal = document.getElementById("incidentModal");
 const modalBody = document.getElementById("modalBody");
 const closeModalBtn = document.getElementById("closeModalBtn");
 const toastContainer = document.getElementById("toastContainer");
+function getLoggedInRoleOrBlock() {
+  const role = sessionStorage.getItem("userRole");
+  if (!role) {
+    showToast("Please login first", "error");
+    return null;
+  }
+  return role;
+}
+function handleLogin() {
+  const role = loginRole.value;
+
+  if (!role) {
+    loginMsg.textContent = "Please select a role";
+    return;
+  }
+
+  sessionStorage.setItem("userRole", role);
+
+  updateLoginUI();
+  showToast("Logged in as " + role, "success");
+}function updateLoginUI() {
+  const role = sessionStorage.getItem("userRole");
+  const mainContainer = document.querySelector(".container");
+
+  if (role) {
+    currentUserRole.textContent = "Logged in as: " + role;
+    logoutBtn.classList.remove("hidden");
+    loginSection.classList.add("hidden");
+    mainContainer.classList.remove("hidden");
+  } else {
+    currentUserRole.textContent = "";
+    logoutBtn.classList.add("hidden");
+    loginSection.classList.remove("hidden");
+    mainContainer.classList.add("hidden");
+  }
+}
+
+function handleLogout() {
+  sessionStorage.removeItem("userRole");
+  updateLoginUI();
+  showToast("Logged out successfully", "success");
+}
+
 function downloadCSV(filename, rows) {
   const processRow = (row) =>
     row.map(value => {
@@ -782,25 +832,17 @@ async function createIncident() {
 
   }
 }
-async function assignIncident() {
-  const id = String(assignIncidentId.value || "").trim();
-  const assignedTo = assignTo.value.trim();
-  const userRole = assignRole.value;
+async function assignIncident(incidentId, assignedTo) {
+  const role = getLoggedInRoleOrBlock();
+  if (!role) {
+    setAssignMsg("Please login first.", "err");
+    return;
+  }
 
-  if (!id || Number(id) <= 0) return setAssignMsg("Incident ID is required.", "err");
-  if (!assignedTo) return setAssignMsg("Assign To is required.", "err");
-  if (!userRole) return setAssignMsg("User Role is required.", "err");
-
-  setAssignMsg("Assigning incident...", null);
-
-  const payload = { assignedTo, userRole };
+  const url = `${API_BASE}/${incidentId}/assign?assignedTo=${encodeURIComponent(assignedTo)}&userRole=${encodeURIComponent(role)}`;
 
   try {
-    const res = await fetch(`${API_BASE}/${id}/assign`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    const res = await fetch(url, { method: "PUT" });
 
     if (!res.ok) {
       let msg = `Failed (${res.status})`;
@@ -815,46 +857,42 @@ async function assignIncident() {
     }
 
     showToast("Incident assigned successfully", "success");
-
     clearAssignForm();
-
-    // refresh list to see the updated assignedTo
     page = 0;
     await refreshAll();
 
-
   } catch (e) {
-    showToast(e.message  || "Unable to assign incident.", "error");
-
+    showToast(e.message || "Unable to assign incident.", "error");
   }
 }
 async function updateIncidentStatus() {
   const id = String(statusIncidentId.value || "").trim();
-  const status = newStatus.value;
-  const userRole = statusRole.value;
+  const newStatusVal = newStatus.value;
+
+  const role = getLoggedInRoleOrBlock();
+  if (!role) return setStatusMsg("Please login first.", "err");
 
   if (!id || Number(id) <= 0) return setStatusMsg("Incident ID is required.", "err");
-  if (!status) return setStatusMsg("New status is required.", "err");
-  if (!userRole) return setStatusMsg("User role is required.", "err");
-const incidentRow = Array.from(document.querySelectorAll("#incidentsBody tr"))
+  if (!newStatusVal) return setStatusMsg("New status is required.", "err");
+
+  // keep your "must be assigned" check (good)
+  const incidentRow = Array.from(document.querySelectorAll("#incidentsBody tr"))
     .find(row => row.children[0].textContent.trim() === id);
 
   if (incidentRow) {
     const assignedCell = incidentRow.children[4].textContent.trim();
-    if (assignedCell === "Unassigned") {
+    // your table shows "-" not "Unassigned" sometimes, handle both
+    if (assignedCell === "Unassigned" || assignedCell === "-" || assignedCell === "") {
       return setStatusMsg("Please assign the incident before changing its status.", "err");
     }
   }
+
   setStatusMsg("Updating status...", null);
 
-  const payload = { status, userRole };
-
   try {
-    const res = await fetch(`${API_BASE}/${id}/status`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    const url = `${API_BASE}/${id}/status?newStatus=${encodeURIComponent(newStatusVal)}&userRole=${encodeURIComponent(role)}`;
+
+    const res = await fetch(url, { method: "PUT" });
 
     if (!res.ok) {
       let msg = `Failed (${res.status})`;
@@ -867,13 +905,11 @@ const incidentRow = Array.from(document.querySelectorAll("#incidentsBody tr"))
       }
       throw new Error(msg);
     }
+
     showToast("Incident status updated successfully", "success");
     clearStatusForm();
-
-    // refresh table
     page = 0;
     await refreshAll();
-
 
   } catch (e) {
     showToast(e.message || "Unable to update status.", "error");
@@ -923,9 +959,21 @@ createForm.addEventListener("submit", (e) => {
 clearBtn.addEventListener("click", () => {
   clearForm();
 });
-assignForm.addEventListener("submit", (e) => {
+if (loginBtn) loginBtn.addEventListener("click", handleLogin);
+if (logoutBtn) logoutBtn.addEventListener("click", handleLogout);
+
+assignForm.addEventListener("submit", async (e) => {
   e.preventDefault();
-  assignIncident();
+
+  const id = String(assignIncidentId.value || "").trim();
+  const assignedTo = assignTo.value.trim();
+
+  if (!id || Number(id) <= 0) return setAssignMsg("Incident ID is required.", "err");
+  if (!assignedTo) return setAssignMsg("Assign To is required.", "err");
+
+  setAssignMsg("Assigning incident...", null);
+
+  await assignIncident(id, assignedTo);
 });
 
 assignClearBtn.addEventListener("click", () => {
@@ -941,6 +989,7 @@ statusClearBtn.addEventListener("click", () => {
 });
 
 // initial load
+updateLoginUI();
 refreshAll();
 
 

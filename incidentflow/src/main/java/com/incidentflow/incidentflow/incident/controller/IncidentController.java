@@ -19,10 +19,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.incidentflow.incidentflow.common.enums.IncidentStatus;
 import com.incidentflow.incidentflow.common.enums.Priority;
-import com.incidentflow.incidentflow.incident.dto.AssignIncidentRequest;
 import com.incidentflow.incidentflow.incident.dto.CreateIncidentRequest;
 import com.incidentflow.incidentflow.incident.dto.DashboardSummary;
-import com.incidentflow.incidentflow.incident.dto.UpdateStatusRequest;
 import com.incidentflow.incidentflow.incident.entity.Incident;
 import com.incidentflow.incidentflow.incident.service.IncidentService;
 
@@ -52,10 +50,9 @@ private IncidentService incidentService;
 
     @Operation(summary = "Assign an incident", description = "Assigns an incident to a user. Only ADMIN or SUPPORT roles are allowed.")
     @PutMapping("/{id}/assign")
-    public Incident assignIncident(@PathVariable Long id,@Valid @RequestBody AssignIncidentRequest request) {
-        return service.assignIncident(id, request.getAssignedTo(), request.getUserRole());
+    public Incident assignIncident(@PathVariable Long id, @RequestParam String assignedTo, @RequestParam String userRole) {
+        return service.assignIncident(id, assignedTo, userRole);
     }
-    
     @Operation(summary = "List incidents", description = "Returns incidents with pagination/sorting and optional filters by status and priority.")
     @GetMapping
     public Page<Incident> getIncidents(
@@ -74,10 +71,10 @@ private IncidentService incidentService;
 
     @Operation(summary = "Update incident status", description = "Updates status using controlled workflow transitions: OPEN->IN_PROGRESS->RESOLVED->CLOSED.")
     @PutMapping("/{id}/status")
-    public Incident updateStatus(@PathVariable Long id,@Valid @RequestBody UpdateStatusRequest request) {
-        return service.updateStatus(id, request.getStatus(), request.getUserRole());
+    public Incident updateStatus(@PathVariable Long id, @RequestParam IncidentStatus newStatus,
+                             @RequestParam String userRole) {
+        return service.updateStatus(id, newStatus, userRole);
     }
-
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteIncident(@PathVariable Long id, @RequestParam String userRole) {
         service.deleteIncident(id, userRole);
@@ -92,6 +89,7 @@ private IncidentService incidentService;
         Incident updated = incidentService.updateIncidentDetails(id, updatedIncident, userRole);
         return ResponseEntity.ok(updated);
     }
+    
     @GetMapping("/dashboard")
 public ResponseEntity<DashboardSummary> getDashboardSummary() {
     return ResponseEntity.ok(incidentService.getDashboardSummary());

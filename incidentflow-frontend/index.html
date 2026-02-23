@@ -8,6 +8,7 @@
 </head>
 <body>
   <header class="header">
+
     <div class="brand">
       <div class="logo">IF</div>
       <div>
@@ -15,9 +16,34 @@
         <p class="subtitle">Incident Management Dashboard</p>
       </div>
     </div>
-  </header>
+    <div id="userInfo" style="margin-left:auto; display:flex; gap:10px; align-items:center;">
+  <span id="currentUserRole"></span>
+  <button id="logoutBtn" class="btn btn-secondary btn-sm hidden">Logout</button>
+</div>
 
-  <main class="container">
+  </header>
+<section class="card" id="loginSection">
+  <h2 class="sectionTitle">Login</h2>
+
+  <div class="formGrid">
+    <label>
+      Select Role
+      <select id="loginRole">
+        <option value="">Select</option>
+        <option value="ADMIN">ADMIN</option>
+        <option value="SUPPORT">SUPPORT</option>
+        <option value="EMPLOYEE">EMPLOYEE</option>
+      </select>
+    </label>
+
+    <div class="actions full">
+      <button id="loginBtn" class="btn">Login</button>
+      <span id="loginMsg" class="formMsg"></span>
+    </div>
+  </div>
+</section>
+  <main class="container hidden">
+
   <section class="dashboard">
   <div class="dashCard">
     <h4>Total</h4>
@@ -116,15 +142,6 @@
       <input id="assignTo" type="text" placeholder="e.g., anuhya" maxlength="60" />
     </label>
 
-    <label>
-      User Role <span class="req">*</span>
-      <select id="assignRole">
-        <option value="">Select</option>
-        <option value="ADMIN">ADMIN</option>
-        <option value="SUPPORT">SUPPORT</option>
-        <option value="EMPLOYEE">EMPLOYEE</option>
-      </select>
-    </label>
 
     <div class="actions full">
       <button type="submit" class="btn">Assign</button>
@@ -154,14 +171,7 @@
       </select>
     </label>
 
-    <label>
-      User Role <span class="req">*</span>
-      <select id="statusRole">
-        <option value="">Select</option>
-        <option value="ADMIN">ADMIN</option>
-        <option value="SUPPORT">SUPPORT</option>
-      </select>
-    </label>
+    
 
     <div class="actions full">
       <button type="submit" class="btn">Update Status</button>
@@ -281,15 +291,7 @@
     <div class="modalBody">
       <p id="deleteText"></p>
 
-      <label style="margin-top:10px; display:block;">
-        Admin Role Required
-        <select id="deleteRole">
-          <option value="">Select</option>
-          <option value="ADMIN">ADMIN</option>
-          <option value="SUPPORT">SUPPORT</option>
-        </select>
-      </label>
-
+      
       <div class="actions" style="margin-top:14px;">
         <button id="confirmDeleteBtn" class="btn" type="button">Delete</button>
         <button id="cancelDeleteBtn" class="btn btn-secondary" type="button">Cancel</button>
@@ -321,12 +323,7 @@
         <option value="HIGH">HIGH</option>
       </select>
 
-      <label>Role</label>
-      <select id="editRole">
-        <option value="">Select</option>
-        <option value="ADMIN">ADMIN</option>
-        <option value="SUPPORT">SUPPORT</option>
-      </select>
+      
       <p><strong>Last Updated By:</strong> <span id="editUpdatedBy"></span></p>
       <p><strong>Last Updated At:</strong> <span id="editUpdatedAt"></span></p>
 

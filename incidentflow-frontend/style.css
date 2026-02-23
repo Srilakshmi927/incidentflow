@@ -304,3 +304,7 @@ tr:hover {
   border-radius: 14px;
   padding: 8px;
 }
+#loginSection {
+  max-width: 400px;
+  margin: 40px auto;
+}
