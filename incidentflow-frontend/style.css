@@ -304,3 +304,16 @@ tr:hover {
   border-radius: 14px;
   padding: 8px;
 }
+#loginSection {
+  max-width: 400px;
+  margin: 40px auto;
+}
+.roleNote {
+  margin: 12px 0 18px;
+  padding: 12px 14px;
+  border: 1px solid #2e3a55;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.05);
+  color: #dbe7ff;
+  font-size: 14px;
+}

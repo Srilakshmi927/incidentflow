@@ -59,8 +59,8 @@ incident.setLastUpdatedAt(java.time.LocalDateTime.now());
     }
 
     public Incident getIncidentById(Long id) {
-        return repo.findById(java.util.Objects.requireNonNull(id))
-                .orElseThrow(() -> new RuntimeException("Incident not found with id: " + id));
+        return repo.findById(id).orElseThrow(() -> new NotFoundException("Incident not found: " + id));
+
     }
 
     
