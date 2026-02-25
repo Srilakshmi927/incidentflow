@@ -68,6 +68,7 @@ private IncidentService incidentService;
     public Incident getById(@PathVariable Long id) {
         return service.getIncidentById(id);
     }
+    
 
     @Operation(summary = "Update incident status", description = "Updates status using controlled workflow transitions: OPEN->IN_PROGRESS->RESOLVED->CLOSED.")
     @PutMapping("/{id}/status")
@@ -75,20 +76,17 @@ private IncidentService incidentService;
                              @RequestParam String userRole) {
         return service.updateStatus(id, newStatus, userRole);
     }
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteIncident(@PathVariable Long id, @RequestParam String userRole) {
-        service.deleteIncident(id, userRole);
-        return ResponseEntity.noContent().build();
-    }
+   
+@DeleteMapping("/{id}")
+public void deleteIncident(@PathVariable Long id, @RequestParam String userRole) {
+    service.deleteIncident(id, userRole);
+}
     @PutMapping("/{id}")
-    public ResponseEntity<Incident> updateIncident(
-            @PathVariable Long id,
-            @RequestBody Incident updatedIncident,
-            @RequestParam String userRole) {
-
-        Incident updated = incidentService.updateIncidentDetails(id, updatedIncident, userRole);
-        return ResponseEntity.ok(updated);
-    }
+public Incident updateIncident(@PathVariable Long id,
+                               @RequestBody Incident updatedIncident,
+                               @RequestParam String userRole) {
+    return service.updateIncidentDetails(id, updatedIncident, userRole);
+}
     
     @GetMapping("/dashboard")
 public ResponseEntity<DashboardSummary> getDashboardSummary() {
