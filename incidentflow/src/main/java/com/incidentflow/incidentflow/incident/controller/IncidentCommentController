@@ -1,0 +1,31 @@
+@RestController
+@RequestMapping("/api/incidents/{incidentId}/comments")
+public class IncidentCommentController {
+
+    private final IncidentCommentService service;
+
+    public IncidentCommentController(IncidentCommentService service) {
+        this.service = service;
+    }
+
+    @GetMapping
+    public List<IncidentComment> getComments(@PathVariable Long incidentId) {
+        return service.getComments(incidentId);
+    }
+
+    @PostMapping
+    public IncidentComment addComment(@PathVariable Long incidentId,
+                                      @RequestBody Map<String,String> body,
+                                      HttpSession session) {
+
+        Object roleObj = session.getAttribute("USER_ROLE");
+        if (roleObj == null) {
+            throw new RuntimeException("Not logged in");
+        }
+
+        String role = roleObj.toString();
+        String commentText = body.get("comment");
+
+        return service.addComment(incidentId, commentText, role);
+    }
+}

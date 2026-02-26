@@ -1,0 +1,35 @@
+@Service
+public class IncidentCommentService {
+
+    private final IncidentCommentRepository repo;
+    private final IncidentRepository incidentRepo;
+
+    public IncidentCommentService(IncidentCommentRepository repo,
+                                  IncidentRepository incidentRepo) {
+        this.repo = repo;
+        this.incidentRepo = incidentRepo;
+    }
+
+    public List<IncidentComment> getComments(Long incidentId) {
+        return repo.findByIncidentIdOrderByCreatedAtDesc(incidentId);
+    }
+
+    public IncidentComment addComment(Long incidentId,
+                                      String text,
+                                      String role) {
+
+        if (!role.equals("ADMIN") && !role.equals("SUPPORT")) {
+            throw new RuntimeException("Only ADMIN or SUPPORT can add comments");
+        }
+
+        Incident incident = incidentRepo.findById(incidentId)
+                .orElseThrow(() -> new RuntimeException("Incident not found"));
+
+        IncidentComment comment = new IncidentComment();
+        comment.setIncident(incident);
+        comment.setComment(text);
+        comment.setCreatedBy(role);
+
+        return repo.save(comment);
+    }
+}

@@ -1,12 +1,12 @@
 package com.incidentflow.incidentflow.incident.repository;
 
-import org.springframework.data.jpa.repository.JpaRepository;
-
-import com.incidentflow.incidentflow.incident.entity.Incident;
-import com.incidentflow.incidentflow.common.enums.IncidentStatus;
-import com.incidentflow.incidentflow.common.enums.Priority;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import com.incidentflow.incidentflow.common.enums.IncidentStatus;
+import com.incidentflow.incidentflow.common.enums.Priority;
+import com.incidentflow.incidentflow.incident.entity.Incident;
 
 
 public interface IncidentRepository extends JpaRepository<Incident, Long> {

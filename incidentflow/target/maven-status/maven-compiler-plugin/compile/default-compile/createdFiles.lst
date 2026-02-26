@@ -3,11 +3,13 @@ com\incidentflow\incidentflow\IncidentflowApplication.class
 com\incidentflow\incidentflow\incident\dto\UpdateStatusRequest.class
 com\incidentflow\incidentflow\common\enums\Priority.class
 com\incidentflow\incidentflow\common\enums\IncidentStatus.class
+com\incidentflow\incidentflow\incident\entity\IncidentComment.class
 com\incidentflow\incidentflow\incident\service\IncidentService.class
 com\incidentflow\incidentflow\common\exception\BadRequestException.class
 com\incidentflow\incidentflow\common\config\CorsConfig$1.class
 com\incidentflow\incidentflow\incident\controller\IncidentController.class
 com\incidentflow\incidentflow\incident\repository\IncidentRepository.class
+com\incidentflow\incidentflow\incident\controller\AuthController.class
 com\incidentflow\incidentflow\incident\dto\AssignIncidentRequest.class
 com\incidentflow\incidentflow\common\exception\GlobalExceptionHandler.class
 com\incidentflow\incidentflow\incident\dto\CreateIncidentRequest.class
