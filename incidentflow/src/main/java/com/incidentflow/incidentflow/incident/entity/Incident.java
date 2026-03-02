@@ -60,6 +60,11 @@ public void setLastUpdatedAt(java.time.LocalDateTime lastUpdatedAt) { this.lastU
     public void onUpdate() {
         this.updatedAt = LocalDateTime.now();
     }
+@Column
+private LocalDateTime slaDeadline;
+@Column(nullable = false)
+private boolean slaBreached = false;
+
 
     public Long getId() { return id; }
 
@@ -80,4 +85,13 @@ public void setLastUpdatedAt(java.time.LocalDateTime lastUpdatedAt) { this.lastU
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public LocalDateTime getSlaDeadline() { return slaDeadline; }
+public void setSlaDeadline(LocalDateTime slaDeadline) { this.slaDeadline = slaDeadline; }
+
+public boolean isSlaBreached() { return slaBreached; }
+public void setSlaBreached(boolean slaBreached) { this.slaBreached = slaBreached; }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
 }

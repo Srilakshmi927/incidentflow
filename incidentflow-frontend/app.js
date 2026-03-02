@@ -356,17 +356,22 @@ function renderRows(items) {
   incidentsBody.innerHTML = "";
 
   const role = getRole(); // ADMIN / SUPPORT / EMPLOYEE
-
   items.forEach((i) => {
     const isAssigned = i.assignedTo && i.assignedTo.trim() !== "";
+    const slaText = i.slaBreached 
+  ? `<span style="color:red;font-weight:bold;">BREACHED</span>` 
+  : formatDate(i.slaDeadline);
+     const tr = document.createElement("tr");
+   if (i.slaBreached) {
+  tr.style.backgroundColor = "rgba(255,0,0,0.08)";
+}
 
    const isLoggedIn = !!role;
 
 const canEdit = isLoggedIn && (role === "ADMIN" || role === "SUPPORT");
 const canDelete = isLoggedIn && role === "ADMIN";
 const showOps = isLoggedIn && role !== "EMPLOYEE";
-    const tr = document.createElement("tr");
-
+   
     tr.innerHTML = `
       <td>${i.id ?? "-"}</td>
       <td>${i.title ?? "-"}</td>
@@ -374,6 +379,7 @@ const showOps = isLoggedIn && role !== "EMPLOYEE";
       <td>${badge(i.status)}</td>
       <td>${isAssigned ? badge(i.assignedTo) : "<span class='unassigned'>Unassigned</span>"}</td>
       <td>${formatDate(i.createdAt)}</td>
+      <td>${slaText}</td>
       <td>
         <div class="actionsCell">
           <button class="btn btn-secondary btn-sm js-view" type="button">View</button>
@@ -428,6 +434,9 @@ const showOps = isLoggedIn && role !== "EMPLOYEE";
     const delBtn = tr.querySelector(".js-delete");
     if (delBtn) {
       delBtn.addEventListener("click", () => openDeleteModal(i.id));
+    }
+     if (i.slaBreached) {
+      tr.style.backgroundColor = "rgba(255,0,0,0.08)";
     }
 
     incidentsBody.appendChild(tr);

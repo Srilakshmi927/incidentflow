@@ -1,6 +1,8 @@
 package com.incidentflow.incidentflow.incident.service;
+import java.time.LocalDateTime;
 import java.util.List;
 
+import static org.hibernate.query.Page.page;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -27,14 +29,31 @@ private static final Logger log = LoggerFactory.getLogger(IncidentService.class)
     public IncidentService(IncidentRepository repo) {
         this.repo = repo;
     }
+    private LocalDateTime calculateSla(Priority priority) {
+    LocalDateTime now = LocalDateTime.now();
 
-    public Incident createIncident(CreateIncidentRequest req) {
-        Incident incident = new Incident();
-        incident.setTitle(req.getTitle());
-        incident.setDescription(req.getDescription());
-        incident.setPriority(req.getPriority());
-        return repo.save(incident);
-    }
+    return switch (priority) {
+        case HIGH -> now.plusHours(4);
+        case MEDIUM -> now.plusHours(12);
+        case LOW -> now.plusHours(24);
+        default -> now.plusHours(24);
+    };
+}
+
+public Incident createIncident(CreateIncidentRequest req) {
+    Incident incident = new Incident();
+    incident.setTitle(req.getTitle());
+    incident.setDescription(req.getDescription());
+    incident.setPriority(req.getPriority());
+    incident.setStatus(IncidentStatus.OPEN);
+
+    LocalDateTime deadline = calculateSla(req.getPriority());
+    incident.setSlaDeadline(deadline);
+    incident.setSlaBreached(false);
+
+    return repo.save(incident);
+}
+
     public Incident assignIncident(Long id, String assignedTo, String userRole) {
     Incident incident = repo.findById(id)
             .orElseThrow(() -> new RuntimeException("Incident not found with id: " + id));
@@ -103,23 +122,51 @@ incident.setLastUpdatedAt(java.time.LocalDateTime.now());
 
     return repo.save(incident);
 }
+private void evaluateSla(Incident incident) {
 
-    public Page<Incident> getIncidents(IncidentStatus status, Priority priority, Pageable pageable) {
+    if (incident == null) return;
 
-    log.info("Fetching incidents | status={} | priority={} | page={} | size={}",
-            status, priority, pageable.getPageNumber(), pageable.getPageSize());
+    if (incident.getSlaDeadline() == null) {
+        LocalDateTime base = incident.getCreatedAt() != null
+                ? incident.getCreatedAt()
+                : LocalDateTime.now();
+
+        LocalDateTime deadline = switch (incident.getPriority()) {
+            case HIGH -> base.plusHours(4);
+            case MEDIUM -> base.plusHours(12);
+            case LOW -> base.plusHours(24);
+            default -> base.plusHours(24);
+        };
+
+        incident.setSlaDeadline(deadline);
+    }
+
+    if (incident.getStatus() != IncidentStatus.CLOSED &&
+        LocalDateTime.now().isAfter(incident.getSlaDeadline())) {
+
+        incident.setSlaBreached(true);
+    } else {
+        incident.setSlaBreached(false);
+    }
+}
+public Page<Incident> getIncidents(IncidentStatus status, Priority priority, Pageable pageable) {
+
+    Page<Incident> page;
 
     if (status != null && priority != null) {
-        return repo.findByStatusAndPriority(status, priority, pageable);
-    }
-    if (status != null) {
-        return repo.findByStatus(status, pageable);
-    }
-    if (priority != null) {
-        return repo.findByPriority(priority, pageable);
+        page = repo.findByStatusAndPriority(status, priority, pageable);
+    } else if (status != null) {
+        page = repo.findByStatus(status, pageable);
+    } else if (priority != null) {
+        page = repo.findByPriority(priority, pageable);
+    } else {
+        page = repo.findAll(pageable);
     }
 
-    return repo.findAll(pageable);
+    // Evaluate SLA for each incident
+    page.getContent().forEach(this::evaluateSla);
+
+    return page;
 }
 
 public void deleteIncident(Long id, String userRole) {

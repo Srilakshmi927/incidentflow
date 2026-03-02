@@ -1,4 +1,5 @@
 com\incidentflow\incidentflow\incident\entity\Incident.class
+com\incidentflow\incidentflow\incident\service\IncidentService$1.class
 com\incidentflow\incidentflow\IncidentflowApplication.class
 com\incidentflow\incidentflow\incident\dto\UpdateStatusRequest.class
 com\incidentflow\incidentflow\common\enums\Priority.class
