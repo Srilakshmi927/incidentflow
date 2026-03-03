@@ -1,7 +1,10 @@
 package com.incidentflow.incidentflow.incident.entity;
 
+import java.beans.Transient;
+import java.time.Duration;
 import java.time.LocalDateTime;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.incidentflow.incidentflow.common.enums.IncidentStatus;
 import com.incidentflow.incidentflow.common.enums.Priority;
 
@@ -14,7 +17,6 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
-
 @Entity
 @Table(name = "incidents")
 public class Incident {
@@ -94,4 +96,18 @@ public void setSlaBreached(boolean slaBreached) { this.slaBreached = slaBreached
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
     }
+
+    @Transient
+@JsonProperty("slaRemainingMinutes")
+public Long getSlaRemainingMinutes() {
+    if (slaDeadline == null) return null;
+    return Duration.between(LocalDateTime.now(), slaDeadline).toMinutes();
+}
+
+@Transient
+@JsonProperty("slaDueSoon")
+public boolean isSlaDueSoon() {
+    Long mins = getSlaRemainingMinutes();
+    return mins != null && mins > 0 && mins <= 60; // due within 1 hour
+}
 }

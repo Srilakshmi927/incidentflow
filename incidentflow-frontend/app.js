@@ -357,13 +357,29 @@ function renderRows(items) {
 
   const role = getRole(); // ADMIN / SUPPORT / EMPLOYEE
   items.forEach((i) => {
-    const isAssigned = i.assignedTo && i.assignedTo.trim() !== "";
-    const slaText = i.slaBreached 
-  ? `<span style="color:red;font-weight:bold;">BREACHED</span>` 
-  : formatDate(i.slaDeadline);
      const tr = document.createElement("tr");
-   if (i.slaBreached) {
-  tr.style.backgroundColor = "rgba(255,0,0,0.08)";
+    const isAssigned = i.assignedTo && i.assignedTo.trim() !== "";
+    // ✅ SLA display (Remaining time + Due soon + Breached)
+let slaText = "-";
+
+if (i.slaBreached) {
+  slaText = `<span style="color:red;font-weight:bold;">BREACHED</span>`;
+} else if (typeof i.slaRemainingMinutes === "number") {
+  const mins = i.slaRemainingMinutes;
+
+  if (mins <= 0) {
+    slaText = `<span style="color:red;font-weight:bold;">BREACHED</span>`;
+  } else {
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    slaText = `${h}h ${m}m left`;
+
+    if (i.slaDueSoon) {
+      slaText += ` <span style="color:orange;font-weight:bold;">(DUE SOON)</span>`;
+    }
+  }
+} else if (i.slaDeadline) {
+  slaText = formatDate(i.slaDeadline);
 }
 
    const isLoggedIn = !!role;
@@ -436,8 +452,10 @@ const showOps = isLoggedIn && role !== "EMPLOYEE";
       delBtn.addEventListener("click", () => openDeleteModal(i.id));
     }
      if (i.slaBreached) {
-      tr.style.backgroundColor = "rgba(255,0,0,0.08)";
-    }
+  tr.style.backgroundColor = "rgba(255,0,0,0.08)";
+} else if (i.slaDueSoon) {
+  tr.style.backgroundColor = "rgba(255,165,0,0.08)";
+}
 
     incidentsBody.appendChild(tr);
   });
@@ -1030,3 +1048,6 @@ if (refreshChartBtn) refreshChartBtn.addEventListener("click", loadStatusChart);
    ========================= */
 updateLoginUI();
 refreshAll();
+setInterval(() => {
+  if (getRole()) refreshAll();
+}, 60000); // refresh every 60 seconds
