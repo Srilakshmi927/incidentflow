@@ -537,13 +537,22 @@ async function createIncident() {
     showToast(e.message || "Unable to create incident.", "error");
   }
 }
+async function assignIncident(id, assignedTo) {
+  const role = getLoggedInRoleOrBlock(); // you already have this helper
 
+  const url =
+    `${API_BASE}/${id}/assign` +
+    `?assignedTo=${encodeURIComponent(assignedTo)}` +
+    `&userRole=${encodeURIComponent(role)}`;
+
+  return apiFetch(url, { method: "PUT" });
+}
 async function assignIncident(incidentId, assignedToVal) {
   const role = getLoggedInRoleOrBlock();
   
   if (!role) return;
 
-  const url = `${API_BASE}/${incidentId}/assign?assignedTo=${encodeURIComponent(assignedToVal)}`;
+  const url = `${API_BASE}/${incidentId}/assign?assignedTo=${encodeURIComponent(assignedToVal)}/&userRole=${encodeURIComponent(role)}`;
  try {
     const res = await apiFetch(url, { method: "PUT", headers: {} });
  

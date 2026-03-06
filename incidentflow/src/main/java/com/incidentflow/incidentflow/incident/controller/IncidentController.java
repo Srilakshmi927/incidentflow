@@ -1,6 +1,6 @@
 package com.incidentflow.incidentflow.incident.controller;
 
-import java.util.Map;
+import java.util.List;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -25,6 +25,7 @@ import com.incidentflow.incidentflow.common.enums.Priority;
 import com.incidentflow.incidentflow.incident.dto.CreateIncidentRequest;
 import com.incidentflow.incidentflow.incident.dto.DashboardSummary;
 import com.incidentflow.incidentflow.incident.entity.Incident;
+import com.incidentflow.incidentflow.incident.entity.IncidentActivity;
 import com.incidentflow.incidentflow.incident.service.IncidentService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -49,7 +50,13 @@ public class IncidentController {
         if (role == null) throw new RuntimeException("Not logged in");
         return role.toString();
     }
-
+    private String requireRole(HttpSession session) {
+    Object r = session.getAttribute("userRole");
+    if (r == null) {
+        throw new IllegalArgumentException("User role missing. Please login again.");
+    }
+    return String.valueOf(r);
+}
     @Operation(summary = "Create an incident", description = "Creates a new incident with title, description and priority. Status defaults to OPEN.")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -58,14 +65,18 @@ public class IncidentController {
     }
 
     @Operation(summary = "Assign an incident", description = "Assigns an incident to a user. Only ADMIN or SUPPORT roles are allowed.")
-    @PutMapping("/{id}/assign")
-    public Incident assignIncident(@PathVariable Long id,
-                                   @RequestParam String assignedTo,
-                                   HttpSession session) {
-        String role = roleOrThrow(session);
-        return service.assignIncident(id, assignedTo, role);
-    }
+@PutMapping("/{id}/assign")
+public Incident assignIncident(@PathVariable Long id,
+                               @RequestParam String assignedTo,
+                               @RequestParam String userRole,
+                               HttpSession session) {
+    return service.assignIncident(id, assignedTo, userRole);
+}
 
+@GetMapping("/{id}/activity")
+public List<IncidentActivity> getIncidentActivity(@PathVariable Long id) {
+    return service.getActivity(id);
+}
     @Operation(summary = "List incidents", description = "Returns incidents with pagination/sorting and optional filters by status and priority.")
     @GetMapping
     public Page<Incident> getIncidents(
@@ -82,27 +93,27 @@ public class IncidentController {
 
     @Operation(summary = "Update incident status", description = "Updates status using controlled workflow transitions.")
     @PutMapping("/{id}/status")
-    public Incident updateStatus(@PathVariable Long id,
-                                 @RequestParam IncidentStatus newStatus,
-                                 HttpSession session) {
-        String role = roleOrThrow(session);
-        return service.updateStatus(id, newStatus, role);
-    }
+public Incident updateStatus(@PathVariable Long id,
+                             @RequestParam IncidentStatus newStatus,
+                             HttpSession session) {
+    String userRole = requireRole(session);
+    return service.updateStatus(id, newStatus, userRole);
+}
 
+   
     @PutMapping("/{id}")
-    public Incident updateIncident(@PathVariable Long id,
-                                   @RequestBody Incident updatedIncident,
-                                   HttpSession session) {
-        String role = roleOrThrow(session);
-        return service.updateIncidentDetails(id, updatedIncident, role);
-    }
+public Incident updateIncident(@PathVariable Long id,
+                               @RequestBody Incident updatedIncident,
+                               HttpSession session) {
+    String userRole = requireRole(session);
+    return service.updateIncidentDetails(id, updatedIncident, userRole);
+}
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteIncident(@PathVariable Long id, HttpSession session) {
-        String role = roleOrThrow(session);
-        service.deleteIncident(id, role);
-        return ResponseEntity.ok(Map.of("message", "Incident deleted"));
-    }
+@DeleteMapping("/{id}")
+public void deleteIncident(@PathVariable Long id, HttpSession session) {
+    String userRole = requireRole(session);
+    service.deleteIncident(id, userRole);
+}
 
     @GetMapping("/dashboard")
     public ResponseEntity<DashboardSummary> getDashboardSummary() {

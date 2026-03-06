@@ -110,4 +110,8 @@ public boolean isSlaDueSoon() {
     Long mins = getSlaRemainingMinutes();
     return mins != null && mins > 0 && mins <= 60; // due within 1 hour
 }
+
+    public void setId(long id) {
+        this.id = id;
+    }
 }

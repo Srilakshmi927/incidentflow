@@ -2,7 +2,6 @@ package com.incidentflow.incidentflow.incident.service;
 import java.time.LocalDateTime;
 import java.util.List;
 
-import static org.hibernate.query.Page.page;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -17,6 +16,8 @@ import com.incidentflow.incidentflow.common.exception.NotFoundException;
 import com.incidentflow.incidentflow.incident.dto.CreateIncidentRequest;
 import com.incidentflow.incidentflow.incident.dto.DashboardSummary;
 import com.incidentflow.incidentflow.incident.entity.Incident;
+import com.incidentflow.incidentflow.incident.entity.IncidentActivity;
+import com.incidentflow.incidentflow.incident.repository.IncidentActivityRepository;
 import com.incidentflow.incidentflow.incident.repository.IncidentRepository;
 
 
@@ -25,10 +26,21 @@ public class IncidentService {
 private static final Logger log = LoggerFactory.getLogger(IncidentService.class);
 
     private final IncidentRepository repo;
-
-    public IncidentService(IncidentRepository repo) {
+    private final IncidentActivityRepository activityRepo;
+    public IncidentService(IncidentRepository repo, IncidentActivityRepository activityRepo) {
         this.repo = repo;
+        this.activityRepo = activityRepo;
     }
+
+    private void logActivity(Long incidentId, String action, String user) {
+
+    IncidentActivity activity = new IncidentActivity();
+    activity.setIncidentId(incidentId);
+    activity.setAction(action);
+    activity.setPerformedBy(user);
+
+    activityRepo.save(activity);
+}
     private LocalDateTime calculateSla(Priority priority) {
     LocalDateTime now = LocalDateTime.now();
 
@@ -55,6 +67,7 @@ public Incident createIncident(CreateIncidentRequest req) {
 }
 
     public Incident assignIncident(Long id, String assignedTo, String userRole) {
+        
     Incident incident = repo.findById(id)
             .orElseThrow(() -> new RuntimeException("Incident not found with id: " + id));
 
@@ -69,7 +82,12 @@ public Incident createIncident(CreateIncidentRequest req) {
 incident.setLastUpdatedBy(userRole.toUpperCase());
 incident.setLastUpdatedAt(java.time.LocalDateTime.now());
 
-    return repo.save(incident);
+
+repo.save(incident);
+
+logActivity(id, "Assigned to " + assignedTo, userRole);
+
+return incident;
     }
 
 
@@ -119,8 +137,11 @@ incident.setLastUpdatedAt(java.time.LocalDateTime.now());
     incident.setStatus(newStatus);
     incident.setLastUpdatedBy(userRole.toUpperCase());
 incident.setLastUpdatedAt(java.time.LocalDateTime.now());
-
+logActivity(id, "Status changed to " + newStatus, userRole);
     return repo.save(incident);
+}
+public List<IncidentActivity> getActivity(Long incidentId) {
+    return activityRepo.findByIncidentIdOrderByCreatedAtDesc(incidentId);
 }
 private void evaluateSla(Incident incident) {
 

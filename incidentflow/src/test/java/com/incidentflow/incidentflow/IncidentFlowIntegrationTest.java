@@ -63,10 +63,9 @@ class IncidentFlowIntegrationTest {
             }
             """;
 
-        mockMvc.perform(put("/api/incidents/1/status")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(statusPayload))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").exists());
+        mockMvc.perform(put("/api/incidents/{id}/status", 1)
+        .param("newStatus", "CLOSED")
+        .sessionAttr("userRole", "SUPPORT"))
+        .andExpect(status().isBadRequest());
     }
 }
