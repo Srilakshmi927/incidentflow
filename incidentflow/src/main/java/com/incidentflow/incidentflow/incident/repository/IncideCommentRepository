@@ -1,5 +1,0 @@
-public interface IncidentCommentRepository
-        extends JpaRepository<IncidentComment, Long> {
-
-    List<IncidentComment> findByIncidentIdOrderByCreatedAtDesc(Long incidentId);
-}

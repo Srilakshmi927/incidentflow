@@ -17,21 +17,34 @@ import com.incidentflow.incidentflow.incident.dto.CreateIncidentRequest;
 import com.incidentflow.incidentflow.incident.dto.DashboardSummary;
 import com.incidentflow.incidentflow.incident.entity.Incident;
 import com.incidentflow.incidentflow.incident.entity.IncidentActivity;
+import com.incidentflow.incidentflow.incident.entity.IncidentComment;
 import com.incidentflow.incidentflow.incident.repository.IncidentActivityRepository;
+import com.incidentflow.incidentflow.incident.repository.IncidentCommentRepository;
 import com.incidentflow.incidentflow.incident.repository.IncidentRepository;
-
 
 @Service
 public class IncidentService {
 private static final Logger log = LoggerFactory.getLogger(IncidentService.class);
-
+private final IncidentCommentRepository commentRepo;
     private final IncidentRepository repo;
     private final IncidentActivityRepository activityRepo;
-    public IncidentService(IncidentRepository repo, IncidentActivityRepository activityRepo) {
+    public IncidentService(IncidentRepository repo, IncidentActivityRepository activityRepo,IncidentCommentRepository commentRepo) {
         this.repo = repo;
         this.activityRepo = activityRepo;
+        this.commentRepo = commentRepo;
     }
+public IncidentComment addComment(Long incidentId, String comment, String user) {
 
+    Incident incident = repo.findById(incidentId)
+            .orElseThrow(() -> new RuntimeException("Incident not found"));
+
+    IncidentComment ic = new IncidentComment();
+    ic.setIncidentId(incidentId);
+    ic.setComment(comment);
+    ic.setCreatedBy(user);
+
+    return commentRepo.save(ic);
+}
     private void logActivity(Long incidentId, String action, String user) {
 
     IncidentActivity activity = new IncidentActivity();
@@ -90,7 +103,9 @@ logActivity(id, "Assigned to " + assignedTo, userRole);
 return incident;
     }
 
-
+public List<IncidentComment> getComments(Long incidentId) {
+    return commentRepo.findByIncidentIdOrderByCreatedAtDesc(incidentId);
+}
     public List<Incident> getAllIncidents() {
         return repo.findAll();
     }
@@ -99,8 +114,22 @@ return incident;
         return repo.findById(id).orElseThrow(() -> new NotFoundException("Incident not found: " + id));
 
     }
+public IncidentComment updateComment(Long commentId, String newComment, String user) {
 
-    
+    IncidentComment comment = commentRepo.findById(commentId)
+            .orElseThrow(() -> new RuntimeException("Comment not found"));
+
+    comment.setComment(newComment);
+
+    return commentRepo.save(comment);
+}
+   public void deleteComment(Long commentId) {
+
+    IncidentComment comment = commentRepo.findById(commentId)
+            .orElseThrow(() -> new RuntimeException("Comment not found"));
+
+    commentRepo.delete(comment);
+} 
     public Incident updateStatus(Long id, IncidentStatus newStatus, String userRole) {
 
     Incident incident = repo.findById(java.util.Objects.requireNonNull(id))

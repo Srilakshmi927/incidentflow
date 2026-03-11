@@ -547,6 +547,166 @@ async function assignIncident(id, assignedTo) {
 
   return apiFetch(url, { method: "PUT" });
 }
+async function loadComments(incidentId) {
+  try {
+    const res = await apiFetch(`${API_BASE}/${incidentId}/comments`, {
+      method: "GET",
+      headers: {}
+    });
+
+    if (!res.ok) throw new Error("Failed to load comments");
+
+    const comments = await res.json();
+    const container = document.getElementById("commentsContainer");
+
+    if (!container) return;
+
+    container.innerHTML = "";
+
+    if (!comments || comments.length === 0) {
+      container.innerHTML = "<p>No comments yet.</p>";
+      return;
+    }
+
+    comments.forEach(c => {
+      const div = document.createElement("div");
+      div.className = "comment-box";
+
+      div.innerHTML = `
+        <p id="comment-text-${c.id}">${c.comment}</p>
+        <small>By ${c.createdBy} at ${formatDate(c.createdAt)}</small>
+        <div class="comment-actions" style="margin-top:8px; display:flex; gap:8px;">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="editComment(${c.id})">Edit</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="deleteComment(${c.id})">Delete</button>
+        </div>
+      `;
+
+      container.appendChild(div);
+    });
+  } catch (e) {
+    const container = document.getElementById("commentsContainer");
+    if (container) {
+      container.innerHTML = "<p>Unable to load comments.</p>";
+    }
+  }
+}
+async function addComment() {
+  const commentInput = document.getElementById("newComment");
+  const commentsSection = document.getElementById("commentsSection");
+
+  if (!commentInput) {
+    showToast("Comment input not found", "error");
+    return;
+  }
+
+  const comment = commentInput.value.trim();
+  const incidentId = commentsSection?.dataset?.incidentId;
+  const user = getRole();
+
+  if (!comment) {
+    showToast("Comment cannot be empty", "error");
+    return;
+  }
+
+  if (!incidentId) {
+    showToast("Incident id missing", "error");
+    return;
+  }
+
+  if (!user) {
+    showToast("Please login first", "error");
+    return;
+  }
+
+  try {
+    const url = `${API_BASE}/${incidentId}/comments?comment=${encodeURIComponent(comment)}&user=${encodeURIComponent(user)}`;
+
+    const res = await apiFetch(url, {
+      method: "POST",
+      headers: {}
+    });
+
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(txt || "Failed to add comment");
+    }
+
+    commentInput.value = "";
+    await loadComments(incidentId);
+    showToast("Comment added successfully", "success");
+  } catch (e) {
+    showToast(e.message || "Unable to add comment", "error");
+  }
+}
+async function editComment(commentId) {
+  const currentTextEl = document.getElementById(`comment-text-${commentId}`);
+  const currentText = currentTextEl ? currentTextEl.textContent.trim() : "";
+
+  const updatedComment = prompt("Edit comment:", currentText);
+
+  if (updatedComment === null) return;
+
+  if (!updatedComment.trim()) {
+    showToast("Updated comment cannot be empty", "error");
+    return;
+  }
+
+  const user = getRole();
+  if (!user) {
+    showToast("Please login first", "error");
+    return;
+  }
+
+  try {
+    const url = `${API_HOST ? `http://${API_HOST}:8080/api/incidents/comments/${commentId}` : `/api/incidents/comments/${commentId}`}?comment=${encodeURIComponent(updatedComment.trim())}&user=${encodeURIComponent(user)}`;
+
+    const res = await apiFetch(url, {
+      method: "PUT",
+      headers: {}
+    });
+
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(txt || "Failed to update comment");
+    }
+
+    const incidentId = document.getElementById("commentsSection")?.dataset?.incidentId;
+    if (incidentId) {
+      await loadComments(incidentId);
+    }
+
+    showToast("Comment updated successfully", "success");
+  } catch (e) {
+    showToast(e.message || "Unable to update comment", "error");
+  }
+}
+async function deleteComment(commentId) {
+  const confirmed = confirm("Are you sure you want to delete this comment?");
+  if (!confirmed) return;
+
+  try {
+    const url = `${API_HOST ? `http://${API_HOST}:8080/api/incidents/comments/${commentId}` : `/api/incidents/comments/${commentId}`}`;
+
+    const res = await apiFetch(url, {
+      method: "DELETE",
+      headers: {}
+    });
+
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(txt || "Failed to delete comment");
+    }
+
+    const incidentId = document.getElementById("commentsSection")?.dataset?.incidentId;
+    if (incidentId) {
+      await loadComments(incidentId);
+    }
+
+    showToast("Comment deleted successfully", "success");
+  } catch (e) {
+    showToast(e.message || "Unable to delete comment", "error");
+  }
+}
 async function assignIncident(incidentId, assignedToVal) {
   const role = getLoggedInRoleOrBlock();
   
@@ -647,95 +807,20 @@ async function viewIncidentDetails(id) {
       <p><strong>Last Updated By:</strong> <span>${i.lastUpdatedBy ?? "-"}</span></p>
       <p><strong>Last Updated At:</strong> <span>${i.lastUpdatedAt ? formatDate(i.lastUpdatedAt) : "-"}</span></p>
 
-      <hr style="margin:12px 0;">
-
-      <div id="commentsSection">
-        <h4>Activity Timeline</h4>
-        <div id="commentsList">Loading comments...</div>
-
-        <textarea id="newCommentText" 
-                  placeholder="Add work note..." 
-                  style="width:100%; margin-top:10px;"></textarea>
-
-        <button onclick="addComment(${id})" 
-                class="btn btn-secondary btn-sm"
-                style="margin-top:6px;">
-          Add Comment
-        </button>
-      </div>
+      
     `;
+  document.getElementById("commentsSection").dataset.incidentId = String(id);
 
-    // 2️⃣ Now load comments AFTER rendering container
-    await loadComments(id);
+    const commentInput = document.getElementById("newComment");
+    if (commentInput) {
+      commentInput.value = "";
+    }
 
-    // 3️⃣ Then open modal
+    loadComments(id);
     openModal();
 
   } catch (e) {
     showToast("Unable to load incident details", "error");
-  }
-}
-async function loadComments(id) {
-  try {
-    const res = await apiFetch(`${API_BASE}/${id}/comments`);
-    if (!res.ok) throw new Error();
-
-    const comments = await res.json();
-    const list = document.getElementById("commentsList");
-
-    if (!list) return;
-
-    if (!comments.length) {
-      list.innerHTML = "<p>No activity yet.</p>";
-      return;
-    }
-
-    let html = "";
-    comments.forEach(c => {
-      html += `
-        <div class="commentBox">
-          <strong>${c.createdBy}</strong>
-          <small style="margin-left:6px; color:gray;">
-            ${formatDate(c.createdAt)}
-          </small>
-          <p>${c.comment}</p>
-        </div>
-      `;
-    });
-
-    list.innerHTML = html;
-
-  } catch {
-    document.getElementById("commentsList").innerHTML =
-      "<p>Unable to load comments.</p>";
-  }
-}
-async function addComment(id) {
-  const textarea = document.getElementById("newCommentText");
-  const text = textarea.value.trim();
-
-  if (!text) {
-    showToast("Comment cannot be empty", "error");
-    return;
-  }
-
-  try {
-    const res = await apiFetch(`${API_BASE}/${id}/comments`, {
-      method: "POST",
-      body: JSON.stringify({ comment: text })
-    });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || "Failed to add comment");
-    }
-
-    textarea.value = "";
-    showToast("Comment added successfully", "success");
-    await loadComments(id);
-
-  } catch (e) {
-    showToast(e.message || "Unable to add comment", "error");
   }
 }
 
@@ -1055,6 +1140,8 @@ if (refreshChartBtn) refreshChartBtn.addEventListener("click", loadStatusChart);
 /* =========================
    Initial load
    ========================= */
+   const addCommentBtn = document.getElementById("addCommentBtn");
+if (addCommentBtn) addCommentBtn.addEventListener("click", addComment);
 updateLoginUI();
 refreshAll();
 setInterval(() => {

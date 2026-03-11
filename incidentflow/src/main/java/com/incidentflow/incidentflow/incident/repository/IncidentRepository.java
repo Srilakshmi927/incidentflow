@@ -23,4 +23,6 @@ long countByPriority(Priority priority);
 
     Page<Incident> findByStatusAndPriority(IncidentStatus status, Priority priority, Pageable pageable);
     List<Incident> findByStatusNotAndSlaDeadlineBefore(IncidentStatus status, LocalDateTime time);
+
+    
 }

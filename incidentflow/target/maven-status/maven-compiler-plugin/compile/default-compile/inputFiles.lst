@@ -15,6 +15,7 @@ D:\incidentflow\incidentflow\src\main\java\com\incidentflow\incidentflow\inciden
 D:\incidentflow\incidentflow\src\main\java\com\incidentflow\incidentflow\incident\entity\IncidentActivity.java
 D:\incidentflow\incidentflow\src\main\java\com\incidentflow\incidentflow\incident\entity\IncidentComment.java
 D:\incidentflow\incidentflow\src\main\java\com\incidentflow\incidentflow\incident\repository\IncidentActivityRepository.java
+D:\incidentflow\incidentflow\src\main\java\com\incidentflow\incidentflow\incident\repository\IncidentCommentRepository.java
 D:\incidentflow\incidentflow\src\main\java\com\incidentflow\incidentflow\incident\repository\IncidentRepository.java
 D:\incidentflow\incidentflow\src\main\java\com\incidentflow\incidentflow\incident\service\IncidentService.java
 D:\incidentflow\incidentflow\src\main\java\com\incidentflow\incidentflow\incident\service\SlaScheduler.java

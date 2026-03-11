@@ -26,6 +26,7 @@ import com.incidentflow.incidentflow.incident.dto.CreateIncidentRequest;
 import com.incidentflow.incidentflow.incident.dto.DashboardSummary;
 import com.incidentflow.incidentflow.incident.entity.Incident;
 import com.incidentflow.incidentflow.incident.entity.IncidentActivity;
+import com.incidentflow.incidentflow.incident.entity.IncidentComment;
 import com.incidentflow.incidentflow.incident.service.IncidentService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -119,4 +120,29 @@ public void deleteIncident(@PathVariable Long id, HttpSession session) {
     public ResponseEntity<DashboardSummary> getDashboardSummary() {
         return ResponseEntity.ok(service.getDashboardSummary());
     }
+    @PostMapping("/{id}/comments")
+public IncidentComment addComment(@PathVariable Long id,
+                                  @RequestParam String comment,
+                                  @RequestParam String user) {
+
+    return service.addComment(id, comment, user);
+}
+@GetMapping("/{id}/comments")
+public List<IncidentComment> getComments(@PathVariable Long id) {
+    return service.getComments(id);
+}
+@PutMapping("/comments/{commentId}")
+public IncidentComment updateComment(@PathVariable Long commentId,
+                                     @RequestParam String comment,
+                                     @RequestParam String user) {
+
+    return service.updateComment(commentId, comment, user);
+}
+@DeleteMapping("/comments/{commentId}")
+public String deleteComment(@PathVariable Long commentId) {
+
+    service.deleteComment(commentId);
+
+    return "Comment deleted successfully";
+}
 }
