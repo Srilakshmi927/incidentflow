@@ -131,18 +131,18 @@ public IncidentComment addComment(@PathVariable Long id,
 public List<IncidentComment> getComments(@PathVariable Long id) {
     return service.getComments(id);
 }
+
 @PutMapping("/comments/{commentId}")
 public IncidentComment updateComment(@PathVariable Long commentId,
                                      @RequestParam String comment,
                                      @RequestParam String user) {
-
     return service.updateComment(commentId, comment, user);
 }
+
 @DeleteMapping("/comments/{commentId}")
-public String deleteComment(@PathVariable Long commentId) {
-
-    service.deleteComment(commentId);
-
+public String deleteComment(@PathVariable Long commentId,
+                            @RequestParam String user) {
+    service.deleteComment(commentId, user);
     return "Comment deleted successfully";
 }
 }

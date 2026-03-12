@@ -563,33 +563,104 @@ async function loadComments(incidentId) {
 
     container.innerHTML = "";
 
-    if (!comments || comments.length === 0) {
-      container.innerHTML = "<p>No comments yet.</p>";
-      return;
-    }
+    const role = getRole();
+    const canModify = role === "ADMIN" || role === "SUPPORT";
 
     comments.forEach(c => {
+
       const div = document.createElement("div");
       div.className = "comment-box";
 
       div.innerHTML = `
-        <p id="comment-text-${c.id}">${c.comment}</p>
-        <small>By ${c.createdBy} at ${formatDate(c.createdAt)}</small>
-        <div class="comment-actions" style="margin-top:8px; display:flex; gap:8px;">
-          <button type="button" class="btn btn-secondary btn-sm" onclick="editComment(${c.id})">Edit</button>
-          <button type="button" class="btn btn-ghost btn-sm" onclick="deleteComment(${c.id})">Delete</button>
+        <div class="comment-text">
+          <span id="comment-text-${c.id}">${c.comment}</span>
+          <input type="text" id="edit-input-${c.id}" class="hidden" value="${c.comment}" />
         </div>
+
+        <small>By ${c.createdBy} at ${formatDate(c.createdAt)}</small>
+
+        ${
+          canModify
+            ? `
+              <div class="comment-actions">
+                <button onclick="startEdit(${c.id})">Edit</button>
+                <button onclick="saveEdit(${c.id})" class="hidden" id="save-btn-${c.id}">Save</button>
+                <button onclick="cancelEdit(${c.id})" class="hidden" id="cancel-btn-${c.id}">Cancel</button>
+                <button onclick="deleteComment(${c.id})">Delete</button>
+              </div>
+            `
+            : ""
+        }
       `;
 
       container.appendChild(div);
     });
+
   } catch (e) {
     const container = document.getElementById("commentsContainer");
-    if (container) {
-      container.innerHTML = "<p>Unable to load comments.</p>";
-    }
+    if (container) container.innerHTML = "<p>Unable to load comments.</p>";
   }
 }
+function startEdit(commentId) {
+
+  document.getElementById(`comment-text-${commentId}`).classList.add("hidden");
+  document.getElementById(`edit-input-${commentId}`).classList.remove("hidden");
+
+  document.getElementById(`save-btn-${commentId}`).classList.remove("hidden");
+  document.getElementById(`cancel-btn-${commentId}`).classList.remove("hidden");
+}
+function cancelEdit(commentId) {    
+  document.getElementById(`comment-text-${commentId}`).classList.remove("hidden");  
+  document.getElementById(`edit-input-${commentId}`).classList.add("hidden");
+  document.getElementById(`save-btn-${commentId}`).classList.add("hidden");
+  document.getElementById(`cancel-btn-${commentId}`).classList.add("hidden");
+}
+async function saveEdit(commentId) {
+
+  const role = getRole();
+
+  if (role !== "ADMIN" && role !== "SUPPORT") {
+    showToast("Only ADMIN or SUPPORT can edit comments", "error");
+    return;
+  }
+
+  const input = document.getElementById(`edit-input-${commentId}`);
+  const updatedComment = input.value.trim();
+
+  if (!updatedComment) {
+    showToast("Comment cannot be empty", "error");
+    return;
+  }
+
+  try {
+
+    const url = `${API_BASE}/comments/${commentId}?comment=${encodeURIComponent(updatedComment)}&user=${encodeURIComponent(role)}`;
+
+    const res = await apiFetch(url, {
+      method: "PUT",
+      headers: {}
+    });
+
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(txt || "Failed to update comment");
+    }
+
+    const incidentId = document.getElementById("commentsSection")?.dataset?.incidentId;
+
+    if (incidentId) {
+      await loadComments(incidentId);
+    }
+
+    showToast("Comment updated successfully", "success");
+
+  } catch (e) {
+
+    showToast(e.message || "Unable to update comment", "error");
+
+  }
+}
+
 async function addComment() {
   const commentInput = document.getElementById("newComment");
   const commentsSection = document.getElementById("commentsSection");
@@ -639,6 +710,13 @@ async function addComment() {
   }
 }
 async function editComment(commentId) {
+  const role = getRole();
+
+  if (role !== "ADMIN" && role !== "SUPPORT") {
+    showToast("Only ADMIN or SUPPORT can edit comments", "error");
+    return;
+  }
+
   const currentTextEl = document.getElementById(`comment-text-${commentId}`);
   const currentText = currentTextEl ? currentTextEl.textContent.trim() : "";
 
@@ -651,14 +729,8 @@ async function editComment(commentId) {
     return;
   }
 
-  const user = getRole();
-  if (!user) {
-    showToast("Please login first", "error");
-    return;
-  }
-
   try {
-    const url = `${API_HOST ? `http://${API_HOST}:8080/api/incidents/comments/${commentId}` : `/api/incidents/comments/${commentId}`}?comment=${encodeURIComponent(updatedComment.trim())}&user=${encodeURIComponent(user)}`;
+    const url = `http://${API_HOST}:8080/api/incidents/comments/${commentId}?comment=${encodeURIComponent(updatedComment.trim())}&user=${encodeURIComponent(role)}`;
 
     const res = await apiFetch(url, {
       method: "PUT",
@@ -676,16 +748,26 @@ async function editComment(commentId) {
     }
 
     showToast("Comment updated successfully", "success");
+
   } catch (e) {
     showToast(e.message || "Unable to update comment", "error");
   }
 }
 async function deleteComment(commentId) {
+
+  const role = getRole();
+
+  if (role !== "ADMIN" && role !== "SUPPORT") {
+    showToast("Only ADMIN or SUPPORT can delete comments", "error");
+    return;
+  }
+
   const confirmed = confirm("Are you sure you want to delete this comment?");
   if (!confirmed) return;
 
   try {
-    const url = `${API_HOST ? `http://${API_HOST}:8080/api/incidents/comments/${commentId}` : `/api/incidents/comments/${commentId}`}`;
+
+    const url = `${API_BASE}/comments/${commentId}?user=${encodeURIComponent(role)}`;
 
     const res = await apiFetch(url, {
       method: "DELETE",
@@ -698,13 +780,17 @@ async function deleteComment(commentId) {
     }
 
     const incidentId = document.getElementById("commentsSection")?.dataset?.incidentId;
+
     if (incidentId) {
       await loadComments(incidentId);
     }
 
     showToast("Comment deleted successfully", "success");
+
   } catch (e) {
+
     showToast(e.message || "Unable to delete comment", "error");
+
   }
 }
 async function assignIncident(incidentId, assignedToVal) {

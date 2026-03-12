@@ -114,7 +114,12 @@ public List<IncidentComment> getComments(Long incidentId) {
         return repo.findById(id).orElseThrow(() -> new NotFoundException("Incident not found: " + id));
 
     }
-public IncidentComment updateComment(Long commentId, String newComment, String user) {
+
+    public IncidentComment updateComment(Long commentId, String newComment, String user) {
+
+    if (!user.equalsIgnoreCase("ADMIN") && !user.equalsIgnoreCase("SUPPORT")) {
+        throw new RuntimeException("Only ADMIN or SUPPORT can edit comments");
+    }
 
     IncidentComment comment = commentRepo.findById(commentId)
             .orElseThrow(() -> new RuntimeException("Comment not found"));
@@ -123,13 +128,19 @@ public IncidentComment updateComment(Long commentId, String newComment, String u
 
     return commentRepo.save(comment);
 }
-   public void deleteComment(Long commentId) {
+
+public void deleteComment(Long commentId, String user) {
+
+    if (!user.equalsIgnoreCase("ADMIN") && !user.equalsIgnoreCase("SUPPORT")) {
+        throw new RuntimeException("Only ADMIN or SUPPORT can delete comments");
+    }
 
     IncidentComment comment = commentRepo.findById(commentId)
             .orElseThrow(() -> new RuntimeException("Comment not found"));
 
     commentRepo.delete(comment);
-} 
+}
+
     public Incident updateStatus(Long id, IncidentStatus newStatus, String userRole) {
 
     Incident incident = repo.findById(java.util.Objects.requireNonNull(id))
