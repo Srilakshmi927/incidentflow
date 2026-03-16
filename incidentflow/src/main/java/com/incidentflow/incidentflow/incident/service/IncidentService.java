@@ -285,7 +285,14 @@ public DashboardSummary getDashboardSummary() {
     return new DashboardSummary(total, open, inProgress, resolved, closed, highPriority);
 }
 
+public Page<Incident> searchIncidentsByTitle(String title, Pageable pageable) {
 
+    if (title == null || title.isBlank()) {
+        return repo.findAll(pageable);
+    }
+
+    return repo.findByTitleContainingIgnoreCase(title.trim(), pageable);
+}
 
 
 }

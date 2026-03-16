@@ -145,4 +145,8 @@ public String deleteComment(@PathVariable Long commentId,
     service.deleteComment(commentId, user);
     return "Comment deleted successfully";
 }
+@GetMapping("/search")
+public Page<Incident> searchIncidents(@RequestParam String title, Pageable pageable) {
+    return service.searchIncidentsByTitle(title, pageable);
+}
 }

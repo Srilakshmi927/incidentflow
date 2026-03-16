@@ -21,7 +21,7 @@ const prevBtn = document.getElementById("prevBtn");
 const nextBtn = document.getElementById("nextBtn");
 const applyBtn = document.getElementById("applyBtn");
 const resetBtn = document.getElementById("resetBtn");
-
+const titleSearch = document.getElementById("titleSearch");
 const alertBox = document.getElementById("alert");
 const loading = document.getElementById("loading");
 const empty = document.getElementById("empty");
@@ -293,8 +293,15 @@ function buildUrl() {
   params.set("page", String(page));
   params.set("size", pageSize?.value || "10");
   params.set("sort", sortSelect?.value || "createdAt,desc");
+
   if (statusFilter?.value) params.set("status", statusFilter.value);
   if (priorityFilter?.value) params.set("priority", priorityFilter.value);
+
+  const title = titleSearch?.value?.trim();
+  if (title) {
+    return `${API_BASE}/search?title=${encodeURIComponent(title)}&${params.toString()}`;
+  }
+
   return `${API_BASE}?${params.toString()}`;
 }
 
@@ -1178,6 +1185,7 @@ if (resetBtn) resetBtn.addEventListener("click", () => {
   if (priorityFilter) priorityFilter.value = "";
   if (sortSelect) sortSelect.value = "createdAt,desc";
   if (pageSize) pageSize.value = "10";
+  if (titleSearch) titleSearch.value = "";
   page = 0;
   refreshAll();
 });
