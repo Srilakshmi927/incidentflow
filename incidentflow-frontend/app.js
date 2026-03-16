@@ -3,7 +3,9 @@
    Clean version (Edit/Delete fixed)
    ========================= */
 
-const API_BASE = "http://localhost:8080/api/incidents";
+const API_HOST = window.location.hostname; // "localhost" or "127.0.0.1"
+const API_BASE = `http://${API_HOST}:8080/api/incidents`;
+const AUTH_BASE = `http://${API_HOST}:8080/api/auth`;
 
 let page = 0;
 let totalPages = 1;
@@ -19,7 +21,7 @@ const prevBtn = document.getElementById("prevBtn");
 const nextBtn = document.getElementById("nextBtn");
 const applyBtn = document.getElementById("applyBtn");
 const resetBtn = document.getElementById("resetBtn");
-
+const titleSearch = document.getElementById("titleSearch");
 const alertBox = document.getElementById("alert");
 const loading = document.getElementById("loading");
 const empty = document.getElementById("empty");
@@ -94,7 +96,16 @@ const statusChart = document.getElementById("statusChart");
 const refreshChartBtn = document.getElementById("refreshChartBtn");
 const exportBtn = document.getElementById("exportBtn");
 const exportDashboardBtn = document.getElementById("exportDashboardBtn");
-
+async function apiFetch(url, options = {}) {
+  return fetch(url, {
+    ...options,
+    credentials: "include", // ✅ sends session cookie
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    },
+  });
+}
 /* ---------- Helpers ---------- */
 function getRole() {
   return (sessionStorage.getItem("userRole") || "").toUpperCase();
@@ -132,19 +143,42 @@ function applyRoleBasedUI() {
   }
 }
 
-function handleLogin() {
-  const role = (loginRole?.value || "").trim();
+async function handleLogin() {
+  const role = (loginRole?.value || "").trim().toUpperCase();
   if (!role) {
     if (loginMsg) loginMsg.textContent = "Please select a role";
     return;
   }
-  sessionStorage.setItem("userRole", role.toUpperCase());
-  if (loginMsg) loginMsg.textContent = "";
-  updateLoginUI();
-  showToast("Logged in as " + role.toUpperCase(), "success");
+
+  try {
+    const res = await apiFetch(`${AUTH_BASE}/login`, {
+      method: "POST",
+      body: JSON.stringify({ role }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || "Login failed");
+    }
+
+    sessionStorage.setItem("userRole", role); // UI only
+    if (loginMsg) loginMsg.textContent = "";
+    updateLoginUI();
+    refreshAll();
+    
+    showToast("Logged in as " + role, "success");
+  } catch (e) {
+    showToast(e.message || "Login failed", "error");
+  }
 }
 
-function handleLogout() {
+async function handleLogout() {
+  try {
+    
+await apiFetch(`${AUTH_BASE}/logout`, { method: "POST" });
+  } catch (e) {
+    console.error("Logout error:", e);
+  }
   sessionStorage.removeItem("userRole");
   updateLoginUI();
   showToast("Logged out successfully", "success");
@@ -259,8 +293,15 @@ function buildUrl() {
   params.set("page", String(page));
   params.set("size", pageSize?.value || "10");
   params.set("sort", sortSelect?.value || "createdAt,desc");
+
   if (statusFilter?.value) params.set("status", statusFilter.value);
   if (priorityFilter?.value) params.set("priority", priorityFilter.value);
+
+  const title = titleSearch?.value?.trim();
+  if (title) {
+    return `${API_BASE}/search?title=${encodeURIComponent(title)}&${params.toString()}`;
+  }
+
   return `${API_BASE}?${params.toString()}`;
 }
 
@@ -322,16 +363,38 @@ function renderRows(items) {
   incidentsBody.innerHTML = "";
 
   const role = getRole(); // ADMIN / SUPPORT / EMPLOYEE
-
   items.forEach((i) => {
+     const tr = document.createElement("tr");
     const isAssigned = i.assignedTo && i.assignedTo.trim() !== "";
+    // ✅ SLA display (Remaining time + Due soon + Breached)
+let slaText = "-";
 
-    const canEdit = role === "ADMIN" || role === "SUPPORT";
-    const canDelete = role === "ADMIN";
-    const showOps = role !== "EMPLOYEE"; // Assign/Status hidden for EMPLOYEE
+if (i.slaBreached) {
+  slaText = `<span style="color:red;font-weight:bold;">BREACHED</span>`;
+} else if (typeof i.slaRemainingMinutes === "number") {
+  const mins = i.slaRemainingMinutes;
 
-    const tr = document.createElement("tr");
+  if (mins <= 0) {
+    slaText = `<span style="color:red;font-weight:bold;">BREACHED</span>`;
+  } else {
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    slaText = `${h}h ${m}m left`;
 
+    if (i.slaDueSoon) {
+      slaText += ` <span style="color:orange;font-weight:bold;">(DUE SOON)</span>`;
+    }
+  }
+} else if (i.slaDeadline) {
+  slaText = formatDate(i.slaDeadline);
+}
+
+   const isLoggedIn = !!role;
+
+const canEdit = isLoggedIn && (role === "ADMIN" || role === "SUPPORT");
+const canDelete = isLoggedIn && role === "ADMIN";
+const showOps = isLoggedIn && role !== "EMPLOYEE";
+   
     tr.innerHTML = `
       <td>${i.id ?? "-"}</td>
       <td>${i.title ?? "-"}</td>
@@ -339,6 +402,7 @@ function renderRows(items) {
       <td>${badge(i.status)}</td>
       <td>${isAssigned ? badge(i.assignedTo) : "<span class='unassigned'>Unassigned</span>"}</td>
       <td>${formatDate(i.createdAt)}</td>
+      <td>${slaText}</td>
       <td>
         <div class="actionsCell">
           <button class="btn btn-secondary btn-sm js-view" type="button">View</button>
@@ -380,7 +444,7 @@ function renderRows(items) {
     if (editBtn) {
       editBtn.addEventListener("click", async () => {
         try {
-          const res = await fetch(`${API_BASE}/${i.id}`);
+          const res = await apiFetch(`${API_BASE}/${i.id}`, { method: "GET", headers: {} });
           if (!res.ok) throw new Error("Unable to load incident for edit");
           const incident = await res.json();
           openEditModalWithIncident(incident);
@@ -394,6 +458,11 @@ function renderRows(items) {
     if (delBtn) {
       delBtn.addEventListener("click", () => openDeleteModal(i.id));
     }
+     if (i.slaBreached) {
+  tr.style.backgroundColor = "rgba(255,0,0,0.08)";
+} else if (i.slaDueSoon) {
+  tr.style.backgroundColor = "rgba(255,165,0,0.08)";
+}
 
     incidentsBody.appendChild(tr);
   });
@@ -410,7 +479,7 @@ async function loadIncidents() {
 
   try {
     const url = buildUrl();
-    const res = await fetch(url);
+    const res = await apiFetch(url, { method: "GET", headers: {} });
     if (!res.ok) {
       const text = await res.text();
       throw new Error(`API error (${res.status}): ${text}`);
@@ -449,11 +518,11 @@ async function createIncident() {
   const payload = { title, description, priority };
 
   try {
-    const res = await fetch(API_BASE, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    const res = await apiFetch(API_BASE, {
+  method: "POST",
+  body: JSON.stringify(payload),
+});
+    
 
     if (!res.ok) {
       let msg = `Failed (${res.status})`;
@@ -475,16 +544,271 @@ async function createIncident() {
     showToast(e.message || "Unable to create incident.", "error");
   }
 }
+async function assignIncident(id, assignedTo) {
+  const role = getLoggedInRoleOrBlock(); // you already have this helper
 
-async function assignIncident(incidentId, assignedToVal) {
-  const role = getLoggedInRoleOrBlock();
-  if (!role) return;
+  const url =
+    `${API_BASE}/${id}/assign` +
+    `?assignedTo=${encodeURIComponent(assignedTo)}` +
+    `&userRole=${encodeURIComponent(role)}`;
 
-  const url = `${API_BASE}/${incidentId}/assign?assignedTo=${encodeURIComponent(assignedToVal)}&userRole=${encodeURIComponent(role)}`;
+  return apiFetch(url, { method: "PUT" });
+}
+async function loadComments(incidentId) {
+  try {
+    const res = await apiFetch(`${API_BASE}/${incidentId}/comments`, {
+      method: "GET",
+      headers: {}
+    });
+
+    if (!res.ok) throw new Error("Failed to load comments");
+
+    const comments = await res.json();
+    const container = document.getElementById("commentsContainer");
+
+    if (!container) return;
+
+    container.innerHTML = "";
+
+    const role = getRole();
+    const canModify = role === "ADMIN" || role === "SUPPORT";
+
+    comments.forEach(c => {
+
+      const div = document.createElement("div");
+      div.className = "comment-box";
+
+      div.innerHTML = `
+        <div class="comment-text">
+          <span id="comment-text-${c.id}">${c.comment}</span>
+          <input type="text" id="edit-input-${c.id}" class="hidden" value="${c.comment}" />
+        </div>
+
+        <small>By ${c.createdBy} at ${formatDate(c.createdAt)}</small>
+
+        ${
+          canModify
+            ? `
+              <div class="comment-actions">
+                <button onclick="startEdit(${c.id})">Edit</button>
+                <button onclick="saveEdit(${c.id})" class="hidden" id="save-btn-${c.id}">Save</button>
+                <button onclick="cancelEdit(${c.id})" class="hidden" id="cancel-btn-${c.id}">Cancel</button>
+                <button onclick="deleteComment(${c.id})">Delete</button>
+              </div>
+            `
+            : ""
+        }
+      `;
+
+      container.appendChild(div);
+    });
+
+  } catch (e) {
+    const container = document.getElementById("commentsContainer");
+    if (container) container.innerHTML = "<p>Unable to load comments.</p>";
+  }
+}
+function startEdit(commentId) {
+
+  document.getElementById(`comment-text-${commentId}`).classList.add("hidden");
+  document.getElementById(`edit-input-${commentId}`).classList.remove("hidden");
+
+  document.getElementById(`save-btn-${commentId}`).classList.remove("hidden");
+  document.getElementById(`cancel-btn-${commentId}`).classList.remove("hidden");
+}
+function cancelEdit(commentId) {    
+  document.getElementById(`comment-text-${commentId}`).classList.remove("hidden");  
+  document.getElementById(`edit-input-${commentId}`).classList.add("hidden");
+  document.getElementById(`save-btn-${commentId}`).classList.add("hidden");
+  document.getElementById(`cancel-btn-${commentId}`).classList.add("hidden");
+}
+async function saveEdit(commentId) {
+
+  const role = getRole();
+
+  if (role !== "ADMIN" && role !== "SUPPORT") {
+    showToast("Only ADMIN or SUPPORT can edit comments", "error");
+    return;
+  }
+
+  const input = document.getElementById(`edit-input-${commentId}`);
+  const updatedComment = input.value.trim();
+
+  if (!updatedComment) {
+    showToast("Comment cannot be empty", "error");
+    return;
+  }
 
   try {
-    const res = await fetch(url, { method: "PUT" });
 
+    const url = `${API_BASE}/comments/${commentId}?comment=${encodeURIComponent(updatedComment)}&user=${encodeURIComponent(role)}`;
+
+    const res = await apiFetch(url, {
+      method: "PUT",
+      headers: {}
+    });
+
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(txt || "Failed to update comment");
+    }
+
+    const incidentId = document.getElementById("commentsSection")?.dataset?.incidentId;
+
+    if (incidentId) {
+      await loadComments(incidentId);
+    }
+
+    showToast("Comment updated successfully", "success");
+
+  } catch (e) {
+
+    showToast(e.message || "Unable to update comment", "error");
+
+  }
+}
+
+async function addComment() {
+  const commentInput = document.getElementById("newComment");
+  const commentsSection = document.getElementById("commentsSection");
+
+  if (!commentInput) {
+    showToast("Comment input not found", "error");
+    return;
+  }
+
+  const comment = commentInput.value.trim();
+  const incidentId = commentsSection?.dataset?.incidentId;
+  const user = getRole();
+
+  if (!comment) {
+    showToast("Comment cannot be empty", "error");
+    return;
+  }
+
+  if (!incidentId) {
+    showToast("Incident id missing", "error");
+    return;
+  }
+
+  if (!user) {
+    showToast("Please login first", "error");
+    return;
+  }
+
+  try {
+    const url = `${API_BASE}/${incidentId}/comments?comment=${encodeURIComponent(comment)}&user=${encodeURIComponent(user)}`;
+
+    const res = await apiFetch(url, {
+      method: "POST",
+      headers: {}
+    });
+
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(txt || "Failed to add comment");
+    }
+
+    commentInput.value = "";
+    await loadComments(incidentId);
+    showToast("Comment added successfully", "success");
+  } catch (e) {
+    showToast(e.message || "Unable to add comment", "error");
+  }
+}
+async function editComment(commentId) {
+  const role = getRole();
+
+  if (role !== "ADMIN" && role !== "SUPPORT") {
+    showToast("Only ADMIN or SUPPORT can edit comments", "error");
+    return;
+  }
+
+  const currentTextEl = document.getElementById(`comment-text-${commentId}`);
+  const currentText = currentTextEl ? currentTextEl.textContent.trim() : "";
+
+  const updatedComment = prompt("Edit comment:", currentText);
+
+  if (updatedComment === null) return;
+
+  if (!updatedComment.trim()) {
+    showToast("Updated comment cannot be empty", "error");
+    return;
+  }
+
+  try {
+    const url = `http://${API_HOST}:8080/api/incidents/comments/${commentId}?comment=${encodeURIComponent(updatedComment.trim())}&user=${encodeURIComponent(role)}`;
+
+    const res = await apiFetch(url, {
+      method: "PUT",
+      headers: {}
+    });
+
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(txt || "Failed to update comment");
+    }
+
+    const incidentId = document.getElementById("commentsSection")?.dataset?.incidentId;
+    if (incidentId) {
+      await loadComments(incidentId);
+    }
+
+    showToast("Comment updated successfully", "success");
+
+  } catch (e) {
+    showToast(e.message || "Unable to update comment", "error");
+  }
+}
+async function deleteComment(commentId) {
+
+  const role = getRole();
+
+  if (role !== "ADMIN" && role !== "SUPPORT") {
+    showToast("Only ADMIN or SUPPORT can delete comments", "error");
+    return;
+  }
+
+  const confirmed = confirm("Are you sure you want to delete this comment?");
+  if (!confirmed) return;
+
+  try {
+
+    const url = `${API_BASE}/comments/${commentId}?user=${encodeURIComponent(role)}`;
+
+    const res = await apiFetch(url, {
+      method: "DELETE",
+      headers: {}
+    });
+
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(txt || "Failed to delete comment");
+    }
+
+    const incidentId = document.getElementById("commentsSection")?.dataset?.incidentId;
+
+    if (incidentId) {
+      await loadComments(incidentId);
+    }
+
+    showToast("Comment deleted successfully", "success");
+
+  } catch (e) {
+
+    showToast(e.message || "Unable to delete comment", "error");
+
+  }
+}
+async function assignIncident(incidentId, assignedToVal) {
+  const role = getLoggedInRoleOrBlock();
+  
+  if (!role) return;
+
+  const url = `${API_BASE}/${incidentId}/assign?assignedTo=${encodeURIComponent(assignedToVal)}/&userRole=${encodeURIComponent(role)}`;
+ try {
+    const res = await apiFetch(url, { method: "PUT", headers: {} });
+ 
     if (!res.ok) {
       let msg = `Failed (${res.status})`;
       try {
@@ -511,6 +835,7 @@ async function updateIncidentStatus() {
   const newStatusVal = newStatus.value;
 
   const role = getLoggedInRoleOrBlock();
+  
   if (!role) return setStatusMsg("Please login first.", "err");
 
   if (!id || Number(id) <= 0) return setStatusMsg("Incident ID is required.", "err");
@@ -530,9 +855,9 @@ async function updateIncidentStatus() {
   setStatusMsg("Updating status...", null);
 
   try {
-    const url = `${API_BASE}/${id}/status?newStatus=${encodeURIComponent(newStatusVal)}&userRole=${encodeURIComponent(role)}`;
-    const res = await fetch(url, { method: "PUT" });
-
+    const url = `${API_BASE}/${id}/status?newStatus=${encodeURIComponent(newStatusVal)}`;
+const res = await apiFetch(url, { method: "PUT", headers: {} });
+  
     if (!res.ok) {
       let msg = `Failed (${res.status})`;
       try {
@@ -556,12 +881,14 @@ async function updateIncidentStatus() {
 
 async function viewIncidentDetails(id) {
   try {
-    const res = await fetch(`${API_BASE}/${id}`);
+    const res = await apiFetch(`${API_BASE}/${id}`); // use apiFetch if session enabled
     if (!res.ok) throw new Error("Failed to fetch incident details");
 
     const i = await res.json();
 
     if (!modalBody) return;
+
+    // 1️⃣ First render basic incident details
     modalBody.innerHTML = `
       <p><strong>ID:</strong> <span>${i.id}</span></p>
       <p><strong>Title:</strong> <span>${i.title}</span></p>
@@ -572,9 +899,19 @@ async function viewIncidentDetails(id) {
       <p><strong>Created At:</strong> <span>${formatDate(i.createdAt)}</span></p>
       <p><strong>Last Updated By:</strong> <span>${i.lastUpdatedBy ?? "-"}</span></p>
       <p><strong>Last Updated At:</strong> <span>${i.lastUpdatedAt ? formatDate(i.lastUpdatedAt) : "-"}</span></p>
-    `;
 
+      
+    `;
+  document.getElementById("commentsSection").dataset.incidentId = String(id);
+
+    const commentInput = document.getElementById("newComment");
+    if (commentInput) {
+      commentInput.value = "";
+    }
+
+    loadComments(id);
     openModal();
+
   } catch (e) {
     showToast("Unable to load incident details", "error");
   }
@@ -603,12 +940,9 @@ async function saveEditedIncident() {
   const payload = { title, description, priority };
 
   try {
-    const url = `${API_BASE}/${id}?userRole=${encodeURIComponent(role)}`;
-    const res = await fetch(url, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    const url = `${API_BASE}/${id}`;
+const res = await apiFetch(url, { method: "PUT", body: JSON.stringify(payload) });
+    
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -637,8 +971,8 @@ async function confirmDelete() {
   if (!id) return showToast("Delete id missing", "error");
 
   try {
-    const res = await fetch(`${API_BASE}/${id}?userRole=${encodeURIComponent(role)}`, { method: "DELETE" });
-
+    const res = await apiFetch(`${API_BASE}/${id}`, { method: "DELETE", headers: {} });
+   
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.error || `Delete failed (${res.status})`);
@@ -851,6 +1185,7 @@ if (resetBtn) resetBtn.addEventListener("click", () => {
   if (priorityFilter) priorityFilter.value = "";
   if (sortSelect) sortSelect.value = "createdAt,desc";
   if (pageSize) pageSize.value = "10";
+  if (titleSearch) titleSearch.value = "";
   page = 0;
   refreshAll();
 });
@@ -899,5 +1234,10 @@ if (refreshChartBtn) refreshChartBtn.addEventListener("click", loadStatusChart);
 /* =========================
    Initial load
    ========================= */
+   const addCommentBtn = document.getElementById("addCommentBtn");
+if (addCommentBtn) addCommentBtn.addEventListener("click", addComment);
 updateLoginUI();
 refreshAll();
+setInterval(() => {
+  if (getRole()) refreshAll();
+}, 60000); // refresh every 60 seconds

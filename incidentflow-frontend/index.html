@@ -223,7 +223,10 @@
               <option value="priority,desc">Priority (High → Low)</option>
             </select>
           </label>
-
+          <label for="titleSearch">
+  Search Title
+  <input id="titleSearch" type="text" placeholder="Search by incident title" />
+</label>
           <button id="applyBtn" class="btn">Apply</button>
           <button id="resetBtn" class="btn btn-secondary">Reset</button>
           <button id="exportBtn" class="btn btn-secondary">Export CSV</button>
@@ -259,6 +262,7 @@
     <th>Assigned To</th>
     <th>Created</th>
     <th>Actions</th>
+    <th>SLA</th>
   </tr>
 </thead>
 
@@ -284,9 +288,17 @@
     </div>
 
     <div id="modalBody" class="modalBody"></div>
-  </div>
-</div>
+  <div id="commentsSection">
+    <h3>Incident Comments</h3>
 
+    <div id="commentsContainer"></div>
+
+    <input type="text" id="newComment" placeholder="Add comment">
+
+     <button type="button" id="addCommentBtn">Add Comment</button>
+</div>
+</div>
+</div>
 <!-- Delete Confirmation Modal -->
 <div id="deleteModal" class="modal hidden">
   <div class="modalContent">

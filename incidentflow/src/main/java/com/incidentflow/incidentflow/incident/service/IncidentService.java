@@ -1,4 +1,5 @@
 package com.incidentflow.incidentflow.incident.service;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -15,27 +16,71 @@ import com.incidentflow.incidentflow.common.exception.NotFoundException;
 import com.incidentflow.incidentflow.incident.dto.CreateIncidentRequest;
 import com.incidentflow.incidentflow.incident.dto.DashboardSummary;
 import com.incidentflow.incidentflow.incident.entity.Incident;
+import com.incidentflow.incidentflow.incident.entity.IncidentActivity;
+import com.incidentflow.incidentflow.incident.entity.IncidentComment;
+import com.incidentflow.incidentflow.incident.repository.IncidentActivityRepository;
+import com.incidentflow.incidentflow.incident.repository.IncidentCommentRepository;
 import com.incidentflow.incidentflow.incident.repository.IncidentRepository;
-
 
 @Service
 public class IncidentService {
 private static final Logger log = LoggerFactory.getLogger(IncidentService.class);
-
+private final IncidentCommentRepository commentRepo;
     private final IncidentRepository repo;
-
-    public IncidentService(IncidentRepository repo) {
+    private final IncidentActivityRepository activityRepo;
+    public IncidentService(IncidentRepository repo, IncidentActivityRepository activityRepo,IncidentCommentRepository commentRepo) {
         this.repo = repo;
+        this.activityRepo = activityRepo;
+        this.commentRepo = commentRepo;
     }
+public IncidentComment addComment(Long incidentId, String comment, String user) {
 
-    public Incident createIncident(CreateIncidentRequest req) {
-        Incident incident = new Incident();
-        incident.setTitle(req.getTitle());
-        incident.setDescription(req.getDescription());
-        incident.setPriority(req.getPriority());
-        return repo.save(incident);
-    }
+    Incident incident = repo.findById(incidentId)
+            .orElseThrow(() -> new RuntimeException("Incident not found"));
+
+    IncidentComment ic = new IncidentComment();
+    ic.setIncidentId(incidentId);
+    ic.setComment(comment);
+    ic.setCreatedBy(user);
+
+    return commentRepo.save(ic);
+}
+    private void logActivity(Long incidentId, String action, String user) {
+
+    IncidentActivity activity = new IncidentActivity();
+    activity.setIncidentId(incidentId);
+    activity.setAction(action);
+    activity.setPerformedBy(user);
+
+    activityRepo.save(activity);
+}
+    private LocalDateTime calculateSla(Priority priority) {
+    LocalDateTime now = LocalDateTime.now();
+
+    return switch (priority) {
+        case HIGH -> now.plusHours(4);
+        case MEDIUM -> now.plusHours(12);
+        case LOW -> now.plusHours(24);
+        default -> now.plusHours(24);
+    };
+}
+
+public Incident createIncident(CreateIncidentRequest req) {
+    Incident incident = new Incident();
+    incident.setTitle(req.getTitle());
+    incident.setDescription(req.getDescription());
+    incident.setPriority(req.getPriority());
+    incident.setStatus(IncidentStatus.OPEN);
+
+    LocalDateTime deadline = calculateSla(req.getPriority());
+    incident.setSlaDeadline(deadline);
+    incident.setSlaBreached(false);
+
+    return repo.save(incident);
+}
+
     public Incident assignIncident(Long id, String assignedTo, String userRole) {
+        
     Incident incident = repo.findById(id)
             .orElseThrow(() -> new RuntimeException("Incident not found with id: " + id));
 
@@ -50,10 +95,17 @@ private static final Logger log = LoggerFactory.getLogger(IncidentService.class)
 incident.setLastUpdatedBy(userRole.toUpperCase());
 incident.setLastUpdatedAt(java.time.LocalDateTime.now());
 
-    return repo.save(incident);
+
+repo.save(incident);
+
+logActivity(id, "Assigned to " + assignedTo, userRole);
+
+return incident;
     }
 
-
+public List<IncidentComment> getComments(Long incidentId) {
+    return commentRepo.findByIncidentIdOrderByCreatedAtDesc(incidentId);
+}
     public List<Incident> getAllIncidents() {
         return repo.findAll();
     }
@@ -63,7 +115,32 @@ incident.setLastUpdatedAt(java.time.LocalDateTime.now());
 
     }
 
-    
+    public IncidentComment updateComment(Long commentId, String newComment, String user) {
+
+    if (!user.equalsIgnoreCase("ADMIN") && !user.equalsIgnoreCase("SUPPORT")) {
+        throw new RuntimeException("Only ADMIN or SUPPORT can edit comments");
+    }
+
+    IncidentComment comment = commentRepo.findById(commentId)
+            .orElseThrow(() -> new RuntimeException("Comment not found"));
+
+    comment.setComment(newComment);
+
+    return commentRepo.save(comment);
+}
+
+public void deleteComment(Long commentId, String user) {
+
+    if (!user.equalsIgnoreCase("ADMIN") && !user.equalsIgnoreCase("SUPPORT")) {
+        throw new RuntimeException("Only ADMIN or SUPPORT can delete comments");
+    }
+
+    IncidentComment comment = commentRepo.findById(commentId)
+            .orElseThrow(() -> new RuntimeException("Comment not found"));
+
+    commentRepo.delete(comment);
+}
+
     public Incident updateStatus(Long id, IncidentStatus newStatus, String userRole) {
 
     Incident incident = repo.findById(java.util.Objects.requireNonNull(id))
@@ -100,26 +177,57 @@ incident.setLastUpdatedAt(java.time.LocalDateTime.now());
     incident.setStatus(newStatus);
     incident.setLastUpdatedBy(userRole.toUpperCase());
 incident.setLastUpdatedAt(java.time.LocalDateTime.now());
-
+logActivity(id, "Status changed to " + newStatus, userRole);
     return repo.save(incident);
 }
+public List<IncidentActivity> getActivity(Long incidentId) {
+    return activityRepo.findByIncidentIdOrderByCreatedAtDesc(incidentId);
+}
+private void evaluateSla(Incident incident) {
 
-    public Page<Incident> getIncidents(IncidentStatus status, Priority priority, Pageable pageable) {
+    if (incident == null) return;
 
-    log.info("Fetching incidents | status={} | priority={} | page={} | size={}",
-            status, priority, pageable.getPageNumber(), pageable.getPageSize());
+    if (incident.getSlaDeadline() == null) {
+        LocalDateTime base = incident.getCreatedAt() != null
+                ? incident.getCreatedAt()
+                : LocalDateTime.now();
+
+        LocalDateTime deadline = switch (incident.getPriority()) {
+            case HIGH -> base.plusHours(4);
+            case MEDIUM -> base.plusHours(12);
+            case LOW -> base.plusHours(24);
+            default -> base.plusHours(24);
+        };
+
+        incident.setSlaDeadline(deadline);
+    }
+
+    if (incident.getStatus() != IncidentStatus.CLOSED &&
+        LocalDateTime.now().isAfter(incident.getSlaDeadline())) {
+
+        incident.setSlaBreached(true);
+    } else {
+        incident.setSlaBreached(false);
+    }
+}
+public Page<Incident> getIncidents(IncidentStatus status, Priority priority, Pageable pageable) {
+
+    Page<Incident> page;
 
     if (status != null && priority != null) {
-        return repo.findByStatusAndPriority(status, priority, pageable);
-    }
-    if (status != null) {
-        return repo.findByStatus(status, pageable);
-    }
-    if (priority != null) {
-        return repo.findByPriority(priority, pageable);
+        page = repo.findByStatusAndPriority(status, priority, pageable);
+    } else if (status != null) {
+        page = repo.findByStatus(status, pageable);
+    } else if (priority != null) {
+        page = repo.findByPriority(priority, pageable);
+    } else {
+        page = repo.findAll(pageable);
     }
 
-    return repo.findAll(pageable);
+    // Evaluate SLA for each incident
+    page.getContent().forEach(this::evaluateSla);
+
+    return page;
 }
 
 public void deleteIncident(Long id, String userRole) {
@@ -177,7 +285,14 @@ public DashboardSummary getDashboardSummary() {
     return new DashboardSummary(total, open, inProgress, resolved, closed, highPriority);
 }
 
+public Page<Incident> searchIncidentsByTitle(String title, Pageable pageable) {
 
+    if (title == null || title.isBlank()) {
+        return repo.findAll(pageable);
+    }
+
+    return repo.findByTitleContainingIgnoreCase(title.trim(), pageable);
+}
 
 
 }
