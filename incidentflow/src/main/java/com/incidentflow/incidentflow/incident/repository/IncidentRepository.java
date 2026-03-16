@@ -10,7 +10,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import com.incidentflow.incidentflow.common.enums.IncidentStatus;
 import com.incidentflow.incidentflow.common.enums.Priority;
 import com.incidentflow.incidentflow.incident.entity.Incident;
-
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface IncidentRepository extends JpaRepository<Incident, Long> {
 long countByStatus(IncidentStatus status);
@@ -23,6 +24,16 @@ long countByPriority(Priority priority);
 
     Page<Incident> findByStatusAndPriority(IncidentStatus status, Priority priority, Pageable pageable);
     List<Incident> findByStatusNotAndSlaDeadlineBefore(IncidentStatus status, LocalDateTime time);
-
+    @Query("""
+SELECT i FROM Incident i
+WHERE (:title IS NULL OR LOWER(i.title) LIKE LOWER(CONCAT('%', :title, '%')))
+AND (:status IS NULL OR i.status = :status)
+AND (:priority IS NULL OR i.priority = :priority)
+""")
+Page<Incident> searchIncidents(
+        @Param("title") String title,
+        @Param("status") IncidentStatus status,
+        @Param("priority") Priority priority,
+        Pageable pageable);
     
 }

@@ -293,6 +293,11 @@ public Page<Incident> searchIncidentsByTitle(String title, Pageable pageable) {
 
     return repo.findByTitleContainingIgnoreCase(title.trim(), pageable);
 }
-
+public Page<Incident> searchIncidents(String title,
+                                      IncidentStatus status,
+                                      Priority priority,
+                                      Pageable pageable) {
+    return repo.searchIncidents(title, status, priority, pageable);
+}
 
 }

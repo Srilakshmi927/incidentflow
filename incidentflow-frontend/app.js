@@ -294,12 +294,17 @@ function buildUrl() {
   params.set("size", pageSize?.value || "10");
   params.set("sort", sortSelect?.value || "createdAt,desc");
 
-  if (statusFilter?.value) params.set("status", statusFilter.value);
-  if (priorityFilter?.value) params.set("priority", priorityFilter.value);
-
   const title = titleSearch?.value?.trim();
-  if (title) {
-    return `${API_BASE}/search?title=${encodeURIComponent(title)}&${params.toString()}`;
+  const status = statusFilter?.value;
+  const priority = priorityFilter?.value;
+
+  if (title) params.set("title", title);
+  if (status) params.set("status", status);
+  if (priority) params.set("priority", priority);
+
+  // If any search/filter exists, use search endpoint
+  if (title || status || priority) {
+    return `${API_BASE}/search?${params.toString()}`;
   }
 
   return `${API_BASE}?${params.toString()}`;
@@ -1180,6 +1185,15 @@ async function exportDashboardCSV() {
 
 // Filters + Paging
 if (applyBtn) applyBtn.addEventListener("click", () => { page = 0; refreshAll(); });
+
+if (titleSearch) {
+  titleSearch.addEventListener("keypress", function (e) {
+    if (e.key === "Enter") {
+      page = 0;
+      refreshAll();
+    }
+  });
+}
 if (resetBtn) resetBtn.addEventListener("click", () => {
   if (statusFilter) statusFilter.value = "";
   if (priorityFilter) priorityFilter.value = "";
