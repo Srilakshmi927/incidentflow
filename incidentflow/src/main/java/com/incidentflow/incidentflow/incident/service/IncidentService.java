@@ -18,20 +18,25 @@ import com.incidentflow.incidentflow.incident.dto.DashboardSummary;
 import com.incidentflow.incidentflow.incident.entity.Incident;
 import com.incidentflow.incidentflow.incident.entity.IncidentActivity;
 import com.incidentflow.incidentflow.incident.entity.IncidentComment;
+import com.incidentflow.incidentflow.incident.entity.Notification;
 import com.incidentflow.incidentflow.incident.repository.IncidentActivityRepository;
 import com.incidentflow.incidentflow.incident.repository.IncidentCommentRepository;
 import com.incidentflow.incidentflow.incident.repository.IncidentRepository;
+import com.incidentflow.incidentflow.incident.repository.NotificationRepository;
 
 @Service
 public class IncidentService {
+    private final NotificationRepository notificationRepo;
+    
 private static final Logger log = LoggerFactory.getLogger(IncidentService.class);
 private final IncidentCommentRepository commentRepo;
     private final IncidentRepository repo;
     private final IncidentActivityRepository activityRepo;
-    public IncidentService(IncidentRepository repo, IncidentActivityRepository activityRepo,IncidentCommentRepository commentRepo) {
+    public IncidentService(IncidentRepository repo, IncidentActivityRepository activityRepo,IncidentCommentRepository commentRepo, NotificationRepository notificationRepo) {
         this.repo = repo;
         this.activityRepo = activityRepo;
         this.commentRepo = commentRepo;
+        this.notificationRepo = notificationRepo;
     }
 public IncidentComment addComment(Long incidentId, String comment, String user) {
 
@@ -64,7 +69,13 @@ public IncidentComment addComment(Long incidentId, String comment, String user) 
         default -> now.plusHours(24);
     };
 }
-
+private void createNotification(Long incidentId, String message, String recipientRole) {
+    Notification notification = new Notification();
+    notification.setIncidentId(incidentId);
+    notification.setMessage(message);
+    notification.setRecipientRole(recipientRole);
+    notificationRepo.save(notification);
+}
 public Incident createIncident(CreateIncidentRequest req) {
     Incident incident = new Incident();
     incident.setTitle(req.getTitle());
@@ -97,7 +108,9 @@ incident.setLastUpdatedAt(java.time.LocalDateTime.now());
 
 
 repo.save(incident);
-
+createNotification(id,
+        "Incident #" + id + " assigned to " + assignedTo,
+        userRole.toUpperCase());
 logActivity(id, "Assigned to " + assignedTo, userRole);
 
 return incident;
@@ -141,44 +154,56 @@ public void deleteComment(Long commentId, String user) {
     commentRepo.delete(comment);
 }
 
-    public Incident updateStatus(Long id, IncidentStatus newStatus, String userRole) {
+ public Incident updateStatus(Long id,
+                             IncidentStatus newStatus,
+                             String userRole,
+                             String resolutionNotes) {
 
-    Incident incident = repo.findById(java.util.Objects.requireNonNull(id))
-            .orElseThrow(() -> new NotFoundException("Incident not found with id: " + id));
+    Incident incident = repo.findById(id)
+            .orElseThrow(() -> new RuntimeException("Incident not found"));
 
-    // Role validation
     if (!userRole.equalsIgnoreCase("ADMIN") && !userRole.equalsIgnoreCase("SUPPORT")) {
-        throw new ForbiddenException("User role is not authorized to update status: " + userRole);
+        throw new RuntimeException("Only ADMIN or SUPPORT can update status");
     }
 
     if (incident.getAssignedTo() == null || incident.getAssignedTo().isBlank()) {
-        throw new BadRequestException(
-                "Incident must be assigned before changing status"
-        );
+        throw new RuntimeException("Incident must be assigned before changing status");
     }
 
     IncidentStatus current = incident.getStatus();
 
-    // block changes after CLOSED
     if (current == IncidentStatus.CLOSED) {
-        throw new BadRequestException("Incident is CLOSED and cannot be updated");
+        throw new RuntimeException("Incident is already CLOSED");
     }
 
-    // Allowed workflow transitions
     boolean valid =
             (current == IncidentStatus.OPEN && newStatus == IncidentStatus.IN_PROGRESS) ||
             (current == IncidentStatus.IN_PROGRESS && newStatus == IncidentStatus.RESOLVED) ||
             (current == IncidentStatus.RESOLVED && newStatus == IncidentStatus.CLOSED);
 
     if (!valid) {
-        throw new BadRequestException("Invalid status transition: " + current + " -> " + newStatus);
+        throw new RuntimeException("Invalid status transition: " + current + " -> " + newStatus);
+    }
+
+    if (newStatus == IncidentStatus.CLOSED) {
+        if (resolutionNotes == null || resolutionNotes.isBlank()) {
+            throw new RuntimeException("Resolution notes are required before closing the incident");
+        }
+        incident.setResolutionNotes(resolutionNotes);
     }
 
     incident.setStatus(newStatus);
     incident.setLastUpdatedBy(userRole.toUpperCase());
-incident.setLastUpdatedAt(java.time.LocalDateTime.now());
-logActivity(id, "Status changed to " + newStatus, userRole);
+    incident.setLastUpdatedAt(java.time.LocalDateTime.now());
+
     return repo.save(incident);
+}
+public List<Notification> getRecentNotifications() {
+    return notificationRepo.findTop10ByOrderByCreatedAtDesc();
+}
+
+public List<Notification> getNotificationsByIncident(Long incidentId) {
+    return notificationRepo.findByIncidentIdOrderByCreatedAtDesc(incidentId);
 }
 public List<IncidentActivity> getActivity(Long incidentId) {
     return activityRepo.findByIncidentIdOrderByCreatedAtDesc(incidentId);
@@ -293,11 +318,13 @@ public Page<Incident> searchIncidentsByTitle(String title, Pageable pageable) {
 
     return repo.findByTitleContainingIgnoreCase(title.trim(), pageable);
 }
+
 public Page<Incident> searchIncidents(String title,
                                       IncidentStatus status,
                                       Priority priority,
+                                      String assignedTo,
                                       Pageable pageable) {
-    return repo.searchIncidents(title, status, priority, pageable);
+    return repo.searchIncidents(title, status, priority, assignedTo, pageable);
 }
 
 }

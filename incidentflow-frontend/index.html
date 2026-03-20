@@ -16,6 +16,10 @@
         <p class="subtitle">Incident Management Dashboard</p>
       </div>
     </div>
+    <section class="card" style="margin-bottom:18px;">
+  <h2 class="sectionTitle">Recent Notifications</h2>
+  <div id="notificationsContainer">No notifications yet.</div>
+</section>
     <div id="userInfo" style="margin-left:auto; display:flex; gap:10px; align-items:center;">
   <span id="currentUserRole"></span>
   <button id="logoutBtn" class="btn btn-secondary btn-sm hidden">Logout</button>
@@ -203,7 +207,10 @@
             </select>
             
           </label>
-
+          <label for="assignedSearch">
+  Assigned To
+  <input id="assignedSearch" type="text" placeholder="Search by assigned user" />
+</label>
           <label>
             Priority
             <select id="priorityFilter">

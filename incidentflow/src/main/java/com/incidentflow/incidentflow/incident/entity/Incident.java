@@ -41,7 +41,8 @@ public void setLastUpdatedAt(java.time.LocalDateTime lastUpdatedAt) { this.lastU
 
     @Column(nullable = false, length = 1000)
     private String description;
-
+    @Column(name = "resolution_notes")
+private String resolutionNotes;
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Priority priority;
@@ -72,6 +73,13 @@ private boolean slaBreached = false;
 
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
+    public String getResolutionNotes() {
+    return resolutionNotes;
+}
+
+public void setResolutionNotes(String resolutionNotes) {
+    this.resolutionNotes = resolutionNotes;
+}
 
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }

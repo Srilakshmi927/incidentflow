@@ -84,7 +84,7 @@ const loginSection = document.getElementById("loginSection");
 const assignSection = document.getElementById("assignSection");
 const statusSection = document.getElementById("statusSection");
 const roleNote = document.getElementById("roleNote");
-
+const notificationsContainer = document.getElementById("notificationsContainer");
 /* Dashboard (optional if present) */
 const dashTotal = document.getElementById("dashTotal");
 const dashOpen = document.getElementById("dashOpen");
@@ -96,6 +96,7 @@ const statusChart = document.getElementById("statusChart");
 const refreshChartBtn = document.getElementById("refreshChartBtn");
 const exportBtn = document.getElementById("exportBtn");
 const exportDashboardBtn = document.getElementById("exportDashboardBtn");
+const assignedSearch = document.getElementById("assignedSearch");
 async function apiFetch(url, options = {}) {
   return fetch(url, {
     ...options,
@@ -142,7 +143,40 @@ function applyRoleBasedUI() {
     if (statusSection) statusSection.classList.add("hidden");
   }
 }
+async function loadNotifications() {
+  if (!notificationsContainer) return;
 
+  try {
+    const res = await apiFetch(`${API_BASE}/notifications`, {
+      method: "GET",
+      headers: {}
+    });
+
+    if (!res.ok) throw new Error("Failed to load notifications");
+
+    const notifications = await res.json();
+
+    if (!notifications || notifications.length === 0) {
+      notificationsContainer.innerHTML = "<p>No notifications yet.</p>";
+      return;
+    }
+
+    notificationsContainer.innerHTML = "";
+
+    notifications.forEach(n => {
+      const div = document.createElement("div");
+      div.className = "comment-box";
+      div.innerHTML = `
+        <p>${n.message}</p>
+        <small>${n.recipientRole} • ${formatDate(n.createdAt)}</small>
+      `;
+      notificationsContainer.appendChild(div);
+    });
+
+  } catch (e) {
+    notificationsContainer.innerHTML = "<p>Unable to load notifications.</p>";
+  }
+}
 async function handleLogin() {
   const role = (loginRole?.value || "").trim().toUpperCase();
   if (!role) {
@@ -297,13 +331,14 @@ function buildUrl() {
   const title = titleSearch?.value?.trim();
   const status = statusFilter?.value;
   const priority = priorityFilter?.value;
+  const assignedTo = assignedSearch?.value?.trim();
 
   if (title) params.set("title", title);
   if (status) params.set("status", status);
   if (priority) params.set("priority", priority);
+  if (assignedTo) params.set("assignedTo", assignedTo);
 
-  // If any search/filter exists, use search endpoint
-  if (title || status || priority) {
+  if (title || status || priority || assignedTo) {
     return `${API_BASE}/search?${params.toString()}`;
   }
 
@@ -838,46 +873,40 @@ async function assignIncident(incidentId, assignedToVal) {
 async function updateIncidentStatus() {
   const id = String(statusIncidentId.value || "").trim();
   const newStatusVal = newStatus.value;
-
   const role = getLoggedInRoleOrBlock();
-  
-  if (!role) return setStatusMsg("Please login first.", "err");
 
-  if (!id || Number(id) <= 0) return setStatusMsg("Incident ID is required.", "err");
-  if (!newStatusVal) return setStatusMsg("New status is required.", "err");
+  if (!role) return;
 
-  // must be assigned check
-  const row = Array.from(document.querySelectorAll("#incidentsBody tr"))
-    .find(r => r.children[0]?.textContent?.trim() === id);
+  let resolutionNotes = "";
 
-  if (row) {
-    const assignedCell = row.children[4]?.textContent?.trim() || "";
-    if (assignedCell === "Unassigned" || assignedCell === "-" || assignedCell === "") {
-      return setStatusMsg("Please assign the incident before changing its status.", "err");
+  if (newStatusVal === "CLOSED") {
+    resolutionNotes = prompt("Enter resolution notes before closing the incident:");
+
+    if (!resolutionNotes || !resolutionNotes.trim()) {
+      setStatusMsg("Resolution notes are required before closing the incident.", "err");
+      return;
     }
   }
 
-  setStatusMsg("Updating status...", null);
-
   try {
-    const url = `${API_BASE}/${id}/status?newStatus=${encodeURIComponent(newStatusVal)}`;
-const res = await apiFetch(url, { method: "PUT", headers: {} });
-  
+    let url = `${API_BASE}/${id}/status?newStatus=${encodeURIComponent(newStatusVal)}&userRole=${encodeURIComponent(role)}`;
+
+    if (resolutionNotes) {
+      url += `&resolutionNotes=${encodeURIComponent(resolutionNotes.trim())}`;
+    }
+
+    const res = await apiFetch(url, {
+      method: "PUT",
+      headers: {}
+    });
+
     if (!res.ok) {
-      let msg = `Failed (${res.status})`;
-      try {
-        const errJson = await res.json();
-        msg = errJson.error || msg;
-      } catch {
-        const txt = await res.text();
-        if (txt) msg = txt;
-      }
-      throw new Error(msg);
+      const txt = await res.text();
+      throw new Error(txt || `Failed (${res.status})`);
     }
 
     showToast("Incident status updated successfully", "success");
     clearStatusForm();
-    page = 0;
     await refreshAll();
   } catch (e) {
     showToast(e.message || "Unable to update status.", "error");
@@ -942,16 +971,23 @@ async function saveEditedIncident() {
     return;
   }
 
-  const payload = { title, description, priority };
+  const payload = {
+    title,
+    description,
+    priority
+  };
 
   try {
-    const url = `${API_BASE}/${id}`;
-const res = await apiFetch(url, { method: "PUT", body: JSON.stringify(payload) });
-    
+    const url = `${API_BASE}/${id}?userRole=${encodeURIComponent(role)}`;
+
+    const res = await apiFetch(url, {
+      method: "PUT",
+      body: JSON.stringify(payload)
+    });
 
     if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || `Edit failed (${res.status})`);
+      const txt = await res.text();
+      throw new Error(txt || `Edit failed (${res.status})`);
     }
 
     showToast("Incident updated successfully", "success");
@@ -1092,12 +1128,13 @@ async function loadStatusChart() {
   } catch {}
 }
 
+
 async function refreshAll() {
   await loadIncidents();
   await loadDashboard();
   await loadStatusChart();
+  await loadNotifications();
 }
-
 /* ---------- CSV export (optional if button exists) ---------- */
 function downloadCSV(filename, rows) {
   const processRow = (row) =>
@@ -1178,7 +1215,14 @@ async function exportDashboardCSV() {
     showToast(e.message || "Dashboard export failed", "error");
   }
 }
-
+if (assignedSearch) {
+  assignedSearch.addEventListener("keypress", function (e) {
+    if (e.key === "Enter") {
+      page = 0;
+      refreshAll();
+    }
+  });
+}
 /* =========================
    Event bindings
    ========================= */
@@ -1194,12 +1238,14 @@ if (titleSearch) {
     }
   });
 }
-if (resetBtn) resetBtn.addEventListener("click", () => {
+
+if (resetBtn) applyBtn?.addEventListener && resetBtn.addEventListener("click", () => {
   if (statusFilter) statusFilter.value = "";
   if (priorityFilter) priorityFilter.value = "";
   if (sortSelect) sortSelect.value = "createdAt,desc";
   if (pageSize) pageSize.value = "10";
   if (titleSearch) titleSearch.value = "";
+  if (assignedSearch) assignedSearch.value = "";
   page = 0;
   refreshAll();
 });
