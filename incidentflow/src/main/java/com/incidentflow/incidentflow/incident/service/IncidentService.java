@@ -90,31 +90,27 @@ public Incident createIncident(CreateIncidentRequest req) {
     return repo.save(incident);
 }
 
-    public Incident assignIncident(Long id, String assignedTo, String userRole) {
-        
+   public Incident assignIncident(Long id, String assignedTo, String userRole) {
+
     Incident incident = repo.findById(id)
-            .orElseThrow(() -> new RuntimeException("Incident not found with id: " + id));
+            .orElseThrow(() -> new RuntimeException("Incident not found"));
 
-
-    // Simple role validation (simulate real-time rule)
     if (!userRole.equalsIgnoreCase("ADMIN") && !userRole.equalsIgnoreCase("SUPPORT")) {
-        throw new ForbiddenException("User role is not authorized to assign incidents: " + userRole);
-
+        throw new RuntimeException("Only ADMIN or SUPPORT can assign incidents");
     }
 
     incident.setAssignedTo(assignedTo);
-incident.setLastUpdatedBy(userRole.toUpperCase());
-incident.setLastUpdatedAt(java.time.LocalDateTime.now());
+    incident.setLastUpdatedBy(userRole.toUpperCase());
+    incident.setLastUpdatedAt(java.time.LocalDateTime.now());
 
+    Incident saved = repo.save(incident);
 
-repo.save(incident);
-createNotification(id,
-        "Incident #" + id + " assigned to " + assignedTo,
-        userRole.toUpperCase());
-logActivity(id, "Assigned to " + assignedTo, userRole);
+    createNotification(id,
+            "Incident #" + id + " assigned to " + assignedTo,
+            userRole.toUpperCase());
 
-return incident;
-    }
+    return saved;
+}
 
 public List<IncidentComment> getComments(Long incidentId) {
     return commentRepo.findByIncidentIdOrderByCreatedAtDesc(incidentId);
@@ -153,11 +149,11 @@ public void deleteComment(Long commentId, String user) {
 
     commentRepo.delete(comment);
 }
-
- public Incident updateStatus(Long id,
+public Incident updateStatus(Long id,
                              IncidentStatus newStatus,
                              String userRole,
-                             String resolutionNotes) {
+                             String resolutionNotes,
+                             String reopenReason) {
 
     Incident incident = repo.findById(id)
             .orElseThrow(() -> new RuntimeException("Incident not found"));
@@ -172,14 +168,14 @@ public void deleteComment(Long commentId, String user) {
 
     IncidentStatus current = incident.getStatus();
 
-    if (current == IncidentStatus.CLOSED) {
-        throw new RuntimeException("Incident is already CLOSED");
-    }
 
-    boolean valid =
-            (current == IncidentStatus.OPEN && newStatus == IncidentStatus.IN_PROGRESS) ||
-            (current == IncidentStatus.IN_PROGRESS && newStatus == IncidentStatus.RESOLVED) ||
-            (current == IncidentStatus.RESOLVED && newStatus == IncidentStatus.CLOSED);
+            boolean valid =
+    (current == IncidentStatus.OPEN && newStatus == IncidentStatus.IN_PROGRESS) ||
+    (current == IncidentStatus.IN_PROGRESS && newStatus == IncidentStatus.RESOLVED) ||
+    (current == IncidentStatus.RESOLVED && newStatus == IncidentStatus.CLOSED) ||
+    (current == IncidentStatus.CLOSED && newStatus == IncidentStatus.REOPENED) ||
+    (current == IncidentStatus.REOPENED && newStatus == IncidentStatus.IN_PROGRESS) ||
+    (current == IncidentStatus.REOPENED && newStatus == IncidentStatus.CLOSED);
 
     if (!valid) {
         throw new RuntimeException("Invalid status transition: " + current + " -> " + newStatus);
@@ -192,11 +188,24 @@ public void deleteComment(Long commentId, String user) {
         incident.setResolutionNotes(resolutionNotes);
     }
 
+    if (newStatus == IncidentStatus.REOPENED) {
+        if (reopenReason == null || reopenReason.isBlank()) {
+            throw new RuntimeException("Reopen reason is required to reopen the incident");
+        }
+        incident.setReopenReason(reopenReason);
+    }
+
     incident.setStatus(newStatus);
     incident.setLastUpdatedBy(userRole.toUpperCase());
     incident.setLastUpdatedAt(java.time.LocalDateTime.now());
 
-    return repo.save(incident);
+    Incident saved = repo.save(incident);
+
+    createNotification(id,
+            "Incident #" + id + " status changed to " + newStatus,
+            userRole.toUpperCase());
+
+    return saved;
 }
 public List<Notification> getRecentNotifications() {
     return notificationRepo.findTop10ByOrderByCreatedAtDesc();

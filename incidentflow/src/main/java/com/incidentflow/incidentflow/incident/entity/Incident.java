@@ -50,7 +50,8 @@ private String resolutionNotes;
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private IncidentStatus status = IncidentStatus.OPEN;
-
+    @Column(name = "reopen_reason")
+    private String reopenReason;
     @Column(length = 100)
     private String assignedTo;
 
@@ -80,7 +81,13 @@ private boolean slaBreached = false;
 public void setResolutionNotes(String resolutionNotes) {
     this.resolutionNotes = resolutionNotes;
 }
+public String getReopenReason() {
+    return reopenReason;
+}
 
+public void setReopenReason(String reopenReason) {
+    this.reopenReason = reopenReason;
+}
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
 

@@ -99,9 +99,11 @@ public Incident updateStatus(@PathVariable Long id,
                              @RequestParam IncidentStatus newStatus,
                              @RequestParam String userRole,
                              @RequestParam(required = false) String resolutionNotes,
+                             @RequestParam(required = false) String reopenReason,
                              HttpSession session) {
-    return service.updateStatus(id, newStatus, userRole, resolutionNotes);
+    return service.updateStatus(id, newStatus, userRole, resolutionNotes, reopenReason);
 }
+
 @PutMapping("/{id}")
 public Incident updateIncident(@PathVariable Long id,
                                @RequestBody Incident updatedIncident,
@@ -137,6 +139,7 @@ public IncidentComment updateComment(@PathVariable Long commentId,
                                      @RequestParam String user) {
     return service.updateComment(commentId, comment, user);
 }
+
 
 @DeleteMapping("/comments/{commentId}")
 public String deleteComment(@PathVariable Long commentId,

@@ -37,8 +37,7 @@ void shouldAllowValidStatusTransition() {
     when(repo.findById(1L)).thenReturn(of(incident));
     when(repo.save(any(Incident.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-    Incident updated = service.updateStatus(1L, IncidentStatus.IN_PROGRESS, "SUPPORT", null);
-
+    Incident updated = service.updateStatus(1L, IncidentStatus.IN_PROGRESS, "SUPPORT", null, null);
     assertEquals(IncidentStatus.IN_PROGRESS, updated.getStatus());
 }
 
@@ -51,7 +50,7 @@ void shouldBlockInvalidStatusTransition() {
     when(repo.findById(1L)).thenReturn(Optional.of(incident));
 
     RuntimeException ex = assertThrows(RuntimeException.class, () ->
-            service.updateStatus(1L, IncidentStatus.CLOSED, "SUPPORT", "Test resolution")
+        service.updateStatus(1L, IncidentStatus.CLOSED, "SUPPORT", null, null)
     );
 
     assertTrue(ex.getMessage().contains("Invalid status transition"));
