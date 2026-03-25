@@ -16,6 +16,17 @@
         <p class="subtitle">Incident Management Dashboard</p>
       </div>
     </div>
+ <section class="card" style="margin-bottom:18px;">
+  <h2 class="sectionTitle">Recent Notifications</h2>
+
+  <div class="notificationsPanel">
+    <div id="notificationsContainer">No notifications yet.</div>
+  </div>
+
+  <button id="showAllNotificationsBtn" class="btn btn-secondary btn-sm" type="button">
+    Show All Notifications
+  </button>
+</section>
     <div id="userInfo" style="margin-left:auto; display:flex; gap:10px; align-items:center;">
   <span id="currentUserRole"></span>
   <button id="logoutBtn" class="btn btn-secondary btn-sm hidden">Logout</button>
@@ -170,11 +181,12 @@
     <label>
       New Status <span class="req">*</span>
       <select id="newStatus">
-        <option value="">Select</option>
-        <option value="IN_PROGRESS">IN_PROGRESS</option>
-        <option value="RESOLVED">RESOLVED</option>
-        <option value="CLOSED">CLOSED</option>
-      </select>
+  <option value="">Select</option>
+  <option value="IN_PROGRESS">IN_PROGRESS</option>
+  <option value="RESOLVED">RESOLVED</option>
+  <option value="CLOSED">CLOSED</option>
+  <option value="REOPENED">REOPENED</option>
+</select>
     </label>
 
     
@@ -203,7 +215,10 @@
             </select>
             
           </label>
-
+          <label for="assignedSearch">
+  Assigned To
+  <input id="assignedSearch" type="text" placeholder="Search by assigned user" />
+</label>
           <label>
             Priority
             <select id="priorityFilter">
@@ -261,8 +276,9 @@
     <th>Status</th>
     <th>Assigned To</th>
     <th>Created</th>
-    <th>Actions</th>
     <th>SLA</th>
+    <th>Actions</th>
+    
   </tr>
 </thead>
 

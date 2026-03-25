@@ -84,7 +84,6 @@ const loginSection = document.getElementById("loginSection");
 const assignSection = document.getElementById("assignSection");
 const statusSection = document.getElementById("statusSection");
 const roleNote = document.getElementById("roleNote");
-
 /* Dashboard (optional if present) */
 const dashTotal = document.getElementById("dashTotal");
 const dashOpen = document.getElementById("dashOpen");
@@ -96,6 +95,10 @@ const statusChart = document.getElementById("statusChart");
 const refreshChartBtn = document.getElementById("refreshChartBtn");
 const exportBtn = document.getElementById("exportBtn");
 const exportDashboardBtn = document.getElementById("exportDashboardBtn");
+const assignedSearch = document.getElementById("assignedSearch");
+const notificationsContainer = document.getElementById("notificationsContainer");
+const showAllNotificationsBtn = document.getElementById("showAllNotificationsBtn");
+let allNotificationsLoaded = false;
 async function apiFetch(url, options = {}) {
   return fetch(url, {
     ...options,
@@ -142,6 +145,93 @@ function applyRoleBasedUI() {
     if (statusSection) statusSection.classList.add("hidden");
   }
 }
+
+
+async function loadNotifications() {
+  if (!notificationsContainer) return;
+
+  try {
+    const res = await apiFetch(`${API_BASE}/notifications`, {
+      method: "GET",
+      headers: {}
+    });
+
+    if (!res.ok) throw new Error("Failed to load notifications");
+
+    const notifications = await res.json();
+
+    if (!notifications || notifications.length === 0) {
+      notificationsContainer.innerHTML = "<p>No notifications yet.</p>";
+      return;
+    }
+
+    notificationsContainer.innerHTML = "";
+
+    const latest = notifications.slice(0, 10);
+
+    latest.forEach(n => {
+      const div = document.createElement("div");
+      div.className = "comment-box";
+      div.innerHTML = `
+        <p>${n.message}</p>
+        <small>${n.recipientRole} • ${formatDate(n.createdAt)}</small>
+      `;
+      notificationsContainer.appendChild(div);
+    });
+allNotificationsLoaded = false;
+if (showAllNotificationsBtn) {
+  showAllNotificationsBtn.textContent = "Show All Notifications";
+}
+
+
+  } catch (e) {
+    notificationsContainer.innerHTML = "<p>Unable to load notifications.</p>";
+    console.error("loadNotifications error:", e);
+  }
+}
+
+
+
+async function loadAllNotifications() {
+  if (!notificationsContainer) return;
+
+  try {
+    const res = await apiFetch(`${API_BASE}/notifications`, {
+      method: "GET",
+      headers: {}
+    });
+
+    if (!res.ok) throw new Error("Failed to load notifications");
+
+    const notifications = await res.json();
+
+    if (!notifications || notifications.length === 0) {
+      notificationsContainer.innerHTML = "<p>No notifications yet.</p>";
+      return;
+    }
+
+    notificationsContainer.innerHTML = "";
+
+    notifications.forEach(n => {
+      const div = document.createElement("div");
+      div.className = "comment-box";
+      div.innerHTML = `
+        <p>${n.message}</p>
+        <small>${n.recipientRole} • ${formatDate(n.createdAt)}</small>
+      `;
+      notificationsContainer.appendChild(div);
+    });
+
+    allNotificationsLoaded = true;
+
+
+
+  } catch (e) {
+    notificationsContainer.innerHTML = "<p>Unable to load notifications.</p>";
+    console.error("loadAllNotifications error:", e);
+  }
+}
+
 
 async function handleLogin() {
   const role = (loginRole?.value || "").trim().toUpperCase();
@@ -297,13 +387,14 @@ function buildUrl() {
   const title = titleSearch?.value?.trim();
   const status = statusFilter?.value;
   const priority = priorityFilter?.value;
+  const assignedTo = assignedSearch?.value?.trim();
 
   if (title) params.set("title", title);
   if (status) params.set("status", status);
   if (priority) params.set("priority", priority);
+  if (assignedTo) params.set("assignedTo", assignedTo);
 
-  // If any search/filter exists, use search endpoint
-  if (title || status || priority) {
+  if (title || status || priority || assignedTo) {
     return `${API_BASE}/search?${params.toString()}`;
   }
 
@@ -344,10 +435,11 @@ function clearAssignForm() {
 }
 function clearStatusForm() {
   if (statusIncidentId) statusIncidentId.value = "";
-  if (newStatus) newStatus.value = "";
+  if (newStatus) {
+    newStatus.innerHTML = `<option value="">Select</option>`;
+  }
   setStatusMsg("", null);
 }
-
 /* ---------- Fill forms ---------- */
 function fillAssignFormFromIncident(incident) {
   if (assignIncidentId) assignIncidentId.value = incident.id ?? "";
@@ -355,12 +447,13 @@ function fillAssignFormFromIncident(incident) {
   setAssignMsg("", null);
   assignIncidentId?.scrollIntoView({ behavior: "smooth", block: "center" });
 }
+
 function fillStatusFormFromIncident(incident) {
   if (statusIncidentId) statusIncidentId.value = incident.id ?? "";
+  populateStatusOptions(incident.status);
   setStatusMsg("", null);
   statusIncidentId?.scrollIntoView({ behavior: "smooth", block: "center" });
 }
-
 /* =========================
    Render incidents table
    ========================= */
@@ -368,38 +461,39 @@ function renderRows(items) {
   incidentsBody.innerHTML = "";
 
   const role = getRole(); // ADMIN / SUPPORT / EMPLOYEE
+
   items.forEach((i) => {
-     const tr = document.createElement("tr");
+    const tr = document.createElement("tr");
     const isAssigned = i.assignedTo && i.assignedTo.trim() !== "";
-    // ✅ SLA display (Remaining time + Due soon + Breached)
-let slaText = "-";
 
-if (i.slaBreached) {
-  slaText = `<span style="color:red;font-weight:bold;">BREACHED</span>`;
-} else if (typeof i.slaRemainingMinutes === "number") {
-  const mins = i.slaRemainingMinutes;
+    // ✅ SLA display
+    let slaText = "-";
 
-  if (mins <= 0) {
-    slaText = `<span style="color:red;font-weight:bold;">BREACHED</span>`;
-  } else {
-    const h = Math.floor(mins / 60);
-    const m = mins % 60;
-    slaText = `${h}h ${m}m left`;
+    if (i.slaBreached) {
+      slaText = `<span style="color:red;font-weight:bold;">BREACHED</span>`;
+    } else if (typeof i.slaRemainingMinutes === "number") {
+      const mins = i.slaRemainingMinutes;
 
-    if (i.slaDueSoon) {
-      slaText += ` <span style="color:orange;font-weight:bold;">(DUE SOON)</span>`;
+      if (mins <= 0) {
+        slaText = `<span style="color:red;font-weight:bold;">BREACHED</span>`;
+      } else {
+        const h = Math.floor(mins / 60);
+        const m = mins % 60;
+        slaText = `${h}h ${m}m left`;
+
+        if (i.slaDueSoon) {
+          slaText += ` <span style="color:orange;font-weight:bold;">(DUE SOON)</span>`;
+        }
+      }
+    } else if (i.slaDeadline) {
+      slaText = formatDate(i.slaDeadline);
     }
-  }
-} else if (i.slaDeadline) {
-  slaText = formatDate(i.slaDeadline);
-}
 
-   const isLoggedIn = !!role;
+    const isLoggedIn = !!role;
+    const canEdit = isLoggedIn && (role === "ADMIN" || role === "SUPPORT");
+    const canDelete = isLoggedIn && role === "ADMIN";
+    const showOps = isLoggedIn && role !== "EMPLOYEE";
 
-const canEdit = isLoggedIn && (role === "ADMIN" || role === "SUPPORT");
-const canDelete = isLoggedIn && role === "ADMIN";
-const showOps = isLoggedIn && role !== "EMPLOYEE";
-   
     tr.innerHTML = `
       <td>${i.id ?? "-"}</td>
       <td>${i.title ?? "-"}</td>
@@ -421,6 +515,24 @@ const showOps = isLoggedIn && role !== "EMPLOYEE";
       </td>
     `;
 
+    // ✅ Priority-based row highlight
+    if (i.priority === "HIGH") {
+  tr.style.backgroundColor = "#3a1f24";
+} else if (i.priority === "MEDIUM") {
+  tr.style.backgroundColor = "#3a3420";
+} else if (i.priority === "LOW") {
+  tr.style.backgroundColor = "#1f3324";
+}
+
+if (i.slaBreached) {
+  tr.style.backgroundColor = "#4a1620";
+} else if (i.slaDueSoon) {
+  tr.style.backgroundColor = "#4a341c";
+}
+
+tr.style.color = "#f5f7fb";
+
+
     // Handlers
     tr.querySelector(".js-view").addEventListener("click", () => viewIncidentDetails(i.id));
 
@@ -433,17 +545,19 @@ const showOps = isLoggedIn && role !== "EMPLOYEE";
     }
 
     const statusBtn = tr.querySelector(".js-status");
-    if (statusBtn) {
-      statusBtn.addEventListener("click", () => {
-        if (!isAssigned) {
-          setStatusMsg("Please assign the incident before changing its status.", "err");
-          fillStatusFormFromIncident(i);
-          return;
-        }
-        fillStatusFormFromIncident(i);
-        setStatusMsg(`Updating status for Incident #${i.id}`, null);
-      });
+if (statusBtn) {
+  statusBtn.addEventListener("click", () => {
+    if (!isAssigned) {
+      setStatusMsg("Please assign the incident before changing its status.", "err");
+      fillStatusFormFromIncident(i);
+      return;
     }
+
+    fillStatusFormFromIncident(i);
+    populateStatusOptions(i.status); // ✅ only show valid next statuses
+    setStatusMsg(`Updating status for Incident #${i.id}`, null);
+  });
+}
 
     const editBtn = tr.querySelector(".js-edit");
     if (editBtn) {
@@ -463,11 +577,6 @@ const showOps = isLoggedIn && role !== "EMPLOYEE";
     if (delBtn) {
       delBtn.addEventListener("click", () => openDeleteModal(i.id));
     }
-     if (i.slaBreached) {
-  tr.style.backgroundColor = "rgba(255,0,0,0.08)";
-} else if (i.slaDueSoon) {
-  tr.style.backgroundColor = "rgba(255,165,0,0.08)";
-}
 
     incidentsBody.appendChild(tr);
   });
@@ -549,15 +658,32 @@ async function createIncident() {
     showToast(e.message || "Unable to create incident.", "error");
   }
 }
-async function assignIncident(id, assignedTo) {
-  const role = getLoggedInRoleOrBlock(); // you already have this helper
+async function assignIncident(incidentId, assignedToVal) {
+  const role = getLoggedInRoleOrBlock();
+  if (!role) return;
 
-  const url =
-    `${API_BASE}/${id}/assign` +
-    `?assignedTo=${encodeURIComponent(assignedTo)}` +
-    `&userRole=${encodeURIComponent(role)}`;
+  const url = `${API_BASE}/${incidentId}/assign?assignedTo=${encodeURIComponent(assignedToVal)}&userRole=${encodeURIComponent(role)}`;
 
-  return apiFetch(url, { method: "PUT" });
+  try {
+    const res = await apiFetch(url, {
+      method: "PUT",
+      headers: {}
+    });
+
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(txt || `Failed (${res.status})`);
+    }
+
+    showToast("Incident assigned successfully", "success");
+    clearAssignForm();
+    page = 0;
+    await refreshAll();
+
+  } catch (e) {
+    showToast(e.message || "Unable to assign incident.", "error");
+    console.error("assignIncident error:", e);
+  }
 }
 async function loadComments(incidentId) {
   try {
@@ -612,6 +738,36 @@ async function loadComments(incidentId) {
     const container = document.getElementById("commentsContainer");
     if (container) container.innerHTML = "<p>Unable to load comments.</p>";
   }
+}
+function getAllowedNextStatuses(currentStatus) {
+  switch (currentStatus) {
+    case "OPEN":
+      return ["IN_PROGRESS"];
+    case "IN_PROGRESS":
+      return ["RESOLVED"];
+    case "RESOLVED":
+      return ["CLOSED"];
+    case "CLOSED":
+      return ["REOPENED"];
+    case "REOPENED":
+      return ["IN_PROGRESS", "CLOSED"]; // remove CLOSED if backend does not allow direct close
+    default:
+      return [];
+  }
+}
+function populateStatusOptions(currentStatus) {
+  if (!newStatus) return;
+
+  const allowed = getAllowedNextStatuses(currentStatus);
+
+  newStatus.innerHTML = `<option value="">Select</option>`;
+
+  allowed.forEach(status => {
+    const option = document.createElement("option");
+    option.value = status;
+    option.textContent = status;
+    newStatus.appendChild(option);
+  });
 }
 function startEdit(commentId) {
 
@@ -838,47 +994,74 @@ async function assignIncident(incidentId, assignedToVal) {
 async function updateIncidentStatus() {
   const id = String(statusIncidentId.value || "").trim();
   const newStatusVal = newStatus.value;
-
   const role = getLoggedInRoleOrBlock();
-  
-  if (!role) return setStatusMsg("Please login first.", "err");
 
-  if (!id || Number(id) <= 0) return setStatusMsg("Incident ID is required.", "err");
-  if (!newStatusVal) return setStatusMsg("New status is required.", "err");
+  if (!role) {
+    setStatusMsg("Please login first.", "err");
+    return;
+  }
 
-  // must be assigned check
-  const row = Array.from(document.querySelectorAll("#incidentsBody tr"))
-    .find(r => r.children[0]?.textContent?.trim() === id);
+  if (!id || Number(id) <= 0) {
+    setStatusMsg("Incident ID is required.", "err");
+    return;
+  }
 
-  if (row) {
-    const assignedCell = row.children[4]?.textContent?.trim() || "";
-    if (assignedCell === "Unassigned" || assignedCell === "-" || assignedCell === "") {
-      return setStatusMsg("Please assign the incident before changing its status.", "err");
+  if (!newStatusVal) {
+    setStatusMsg("New status is required.", "err");
+    return;
+  }
+
+  let resolutionNotes = "";
+  let reopenReason = "";
+
+  if (newStatusVal === "CLOSED") {
+    resolutionNotes = prompt("Enter resolution notes before closing the incident:");
+
+    if (!resolutionNotes || !resolutionNotes.trim()) {
+      setStatusMsg("Resolution notes are required before closing the incident.", "err");
+      return;
+    }
+  }
+
+  if (newStatusVal === "REOPENED") {
+    reopenReason = prompt("Enter reopen reason:");
+
+    if (!reopenReason || !reopenReason.trim()) {
+      setStatusMsg("Reopen reason is required to reopen the incident.", "err");
+      return;
     }
   }
 
   setStatusMsg("Updating status...", null);
 
   try {
-    const url = `${API_BASE}/${id}/status?newStatus=${encodeURIComponent(newStatusVal)}`;
-const res = await apiFetch(url, { method: "PUT", headers: {} });
-  
+    let url = `${API_BASE}/${id}/status?newStatus=${encodeURIComponent(newStatusVal)}&userRole=${encodeURIComponent(role)}`;
+
+    if (resolutionNotes) {
+      url += `&resolutionNotes=${encodeURIComponent(resolutionNotes.trim())}`;
+    }
+
+    if (reopenReason) {
+      url += `&reopenReason=${encodeURIComponent(reopenReason.trim())}`;
+    }
+
+    const res = await apiFetch(url, {
+      method: "PUT",
+      headers: {}
+    });
+
     if (!res.ok) {
-      let msg = `Failed (${res.status})`;
-      try {
-        const errJson = await res.json();
-        msg = errJson.error || msg;
-      } catch {
-        const txt = await res.text();
-        if (txt) msg = txt;
-      }
-      throw new Error(msg);
+      const txt = await res.text();
+      throw new Error(txt || `Failed (${res.status})`);
     }
 
     showToast("Incident status updated successfully", "success");
     clearStatusForm();
+
+    // ✅ force incident list + dashboard + chart reload
     page = 0;
     await refreshAll();
+
   } catch (e) {
     showToast(e.message || "Unable to update status.", "error");
   }
@@ -886,14 +1069,13 @@ const res = await apiFetch(url, { method: "PUT", headers: {} });
 
 async function viewIncidentDetails(id) {
   try {
-    const res = await apiFetch(`${API_BASE}/${id}`); // use apiFetch if session enabled
+    const res = await apiFetch(`${API_BASE}/${id}`, { method: "GET", headers: {} });
     if (!res.ok) throw new Error("Failed to fetch incident details");
 
     const i = await res.json();
 
     if (!modalBody) return;
 
-    // 1️⃣ First render basic incident details
     modalBody.innerHTML = `
       <p><strong>ID:</strong> <span>${i.id}</span></p>
       <p><strong>Title:</strong> <span>${i.title}</span></p>
@@ -904,17 +1086,21 @@ async function viewIncidentDetails(id) {
       <p><strong>Created At:</strong> <span>${formatDate(i.createdAt)}</span></p>
       <p><strong>Last Updated By:</strong> <span>${i.lastUpdatedBy ?? "-"}</span></p>
       <p><strong>Last Updated At:</strong> <span>${i.lastUpdatedAt ? formatDate(i.lastUpdatedAt) : "-"}</span></p>
-
-      
+      <p><strong>Resolution Notes:</strong> <span>${i.resolutionNotes ?? "-"}</span></p>
+      <p><strong>Reopen Reason:</strong> <span>${i.reopenReason ?? "-"}</span></p>
     `;
-  document.getElementById("commentsSection").dataset.incidentId = String(id);
+
+    const commentsSection = document.getElementById("commentsSection");
+    if (commentsSection) {
+      commentsSection.dataset.incidentId = String(id);
+    }
 
     const commentInput = document.getElementById("newComment");
     if (commentInput) {
       commentInput.value = "";
     }
 
-    loadComments(id);
+    await loadComments(id);
     openModal();
 
   } catch (e) {
@@ -942,16 +1128,23 @@ async function saveEditedIncident() {
     return;
   }
 
-  const payload = { title, description, priority };
+  const payload = {
+    title,
+    description,
+    priority
+  };
 
   try {
-    const url = `${API_BASE}/${id}`;
-const res = await apiFetch(url, { method: "PUT", body: JSON.stringify(payload) });
-    
+    const url = `${API_BASE}/${id}?userRole=${encodeURIComponent(role)}`;
+
+    const res = await apiFetch(url, {
+      method: "PUT",
+      body: JSON.stringify(payload)
+    });
 
     if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || `Edit failed (${res.status})`);
+      const txt = await res.text();
+      throw new Error(txt || `Edit failed (${res.status})`);
     }
 
     showToast("Incident updated successfully", "success");
@@ -1092,12 +1285,13 @@ async function loadStatusChart() {
   } catch {}
 }
 
+
 async function refreshAll() {
   await loadIncidents();
   await loadDashboard();
   await loadStatusChart();
+  await loadNotifications();
 }
-
 /* ---------- CSV export (optional if button exists) ---------- */
 function downloadCSV(filename, rows) {
   const processRow = (row) =>
@@ -1178,7 +1372,14 @@ async function exportDashboardCSV() {
     showToast(e.message || "Dashboard export failed", "error");
   }
 }
-
+if (assignedSearch) {
+  assignedSearch.addEventListener("keypress", function (e) {
+    if (e.key === "Enter") {
+      page = 0;
+      refreshAll();
+    }
+  });
+}
 /* =========================
    Event bindings
    ========================= */
@@ -1194,12 +1395,14 @@ if (titleSearch) {
     }
   });
 }
-if (resetBtn) resetBtn.addEventListener("click", () => {
+
+if (resetBtn) applyBtn?.addEventListener && resetBtn.addEventListener("click", () => {
   if (statusFilter) statusFilter.value = "";
   if (priorityFilter) priorityFilter.value = "";
   if (sortSelect) sortSelect.value = "createdAt,desc";
   if (pageSize) pageSize.value = "10";
   if (titleSearch) titleSearch.value = "";
+  if (assignedSearch) assignedSearch.value = "";
   page = 0;
   refreshAll();
 });
@@ -1213,10 +1416,18 @@ if (clearBtn) clearBtn.addEventListener("click", clearForm);
 // Assign
 if (assignForm) assignForm.addEventListener("submit", async (e) => {
   e.preventDefault();
+
   const id = String(assignIncidentId?.value || "").trim();
   const assignedToVal = (assignTo?.value || "").trim();
-  if (!id || Number(id) <= 0) return setAssignMsg("Incident ID is required.", "err");
-  if (!assignedToVal) return setAssignMsg("Assign To is required.", "err");
+
+  if (!id || Number(id) <= 0) {
+    return setAssignMsg("Incident ID is required.", "err");
+  }
+
+  if (!assignedToVal) {
+    return setAssignMsg("Assign To is required.", "err");
+  }
+
   setAssignMsg("Assigning incident...", null);
   await assignIncident(id, assignedToVal);
 });
@@ -1225,7 +1436,17 @@ if (assignClearBtn) assignClearBtn.addEventListener("click", clearAssignForm);
 // Status
 if (statusForm) statusForm.addEventListener("submit", (e) => { e.preventDefault(); updateIncidentStatus(); });
 if (statusClearBtn) statusClearBtn.addEventListener("click", clearStatusForm);
+if (showAllNotificationsBtn) {
+  showAllNotificationsBtn.addEventListener("click", async () => {
+    console.log("BUTTON CLICKED"); // 👈 ADD THIS
 
+    if (allNotificationsLoaded) {
+      await loadNotifications();
+    } else {
+      await loadAllNotifications();
+    }
+  });
+}
 // Modals
 if (closeModalBtn) closeModalBtn.addEventListener("click", closeModal);
 if (closeEditBtn) closeEditBtn.addEventListener("click", closeEditModal);

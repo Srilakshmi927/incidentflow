@@ -1,6 +1,7 @@
 package com.incidentflow.incidentflow.incident.service.src.test.java.com.incidentflow.incidentflow.incident.service;
 
 import java.util.Optional;
+import static java.util.Optional.of;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -31,26 +32,25 @@ class IncidentServiceTest {
 void shouldAllowValidStatusTransition() {
     Incident incident = new Incident();
     incident.setStatus(IncidentStatus.OPEN);
-    incident.setAssignedTo("team1"); // ✅ REQUIRED by your service rule
+    incident.setAssignedTo("team1");
 
-    when(repo.findById(1L)).thenReturn(Optional.of(incident));
+    when(repo.findById(1L)).thenReturn(of(incident));
     when(repo.save(any(Incident.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-    Incident updated = service.updateStatus(1L, IncidentStatus.IN_PROGRESS, "SUPPORT");
-
+    Incident updated = service.updateStatus(1L, IncidentStatus.IN_PROGRESS, "SUPPORT", null, null);
     assertEquals(IncidentStatus.IN_PROGRESS, updated.getStatus());
 }
 
-    @Test
+@Test
 void shouldBlockInvalidStatusTransition() {
     Incident incident = new Incident();
     incident.setStatus(IncidentStatus.IN_PROGRESS);
-    incident.setAssignedTo("team1"); // ✅ REQUIRED
+    incident.setAssignedTo("team1");
 
     when(repo.findById(1L)).thenReturn(Optional.of(incident));
 
     RuntimeException ex = assertThrows(RuntimeException.class, () ->
-            service.updateStatus(1L, IncidentStatus.CLOSED, "SUPPORT")
+        service.updateStatus(1L, IncidentStatus.CLOSED, "SUPPORT", null, null)
     );
 
     assertTrue(ex.getMessage().contains("Invalid status transition"));

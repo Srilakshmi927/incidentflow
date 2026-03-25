@@ -27,6 +27,7 @@ import com.incidentflow.incidentflow.incident.dto.DashboardSummary;
 import com.incidentflow.incidentflow.incident.entity.Incident;
 import com.incidentflow.incidentflow.incident.entity.IncidentActivity;
 import com.incidentflow.incidentflow.incident.entity.IncidentComment;
+import com.incidentflow.incidentflow.incident.entity.Notification;
 import com.incidentflow.incidentflow.incident.service.IncidentService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -93,23 +94,23 @@ public List<IncidentActivity> getIncidentActivity(@PathVariable Long id) {
     }
 
     @Operation(summary = "Update incident status", description = "Updates status using controlled workflow transitions.")
-    @PutMapping("/{id}/status")
+@PutMapping("/{id}/status")
 public Incident updateStatus(@PathVariable Long id,
                              @RequestParam IncidentStatus newStatus,
+                             @RequestParam String userRole,
+                             @RequestParam(required = false) String resolutionNotes,
+                             @RequestParam(required = false) String reopenReason,
                              HttpSession session) {
-    String userRole = requireRole(session);
-    return service.updateStatus(id, newStatus, userRole);
+    return service.updateStatus(id, newStatus, userRole, resolutionNotes, reopenReason);
 }
 
-   
-    @PutMapping("/{id}")
+@PutMapping("/{id}")
 public Incident updateIncident(@PathVariable Long id,
                                @RequestBody Incident updatedIncident,
+                               @RequestParam String userRole,
                                HttpSession session) {
-    String userRole = requireRole(session);
     return service.updateIncidentDetails(id, updatedIncident, userRole);
 }
-
 @DeleteMapping("/{id}")
 public void deleteIncident(@PathVariable Long id, HttpSession session) {
     String userRole = requireRole(session);
@@ -139,19 +140,31 @@ public IncidentComment updateComment(@PathVariable Long commentId,
     return service.updateComment(commentId, comment, user);
 }
 
+
 @DeleteMapping("/comments/{commentId}")
 public String deleteComment(@PathVariable Long commentId,
                             @RequestParam String user) {
     service.deleteComment(commentId, user);
     return "Comment deleted successfully";
 }
+
 @GetMapping("/search")
 public Page<Incident> searchIncidents(
         @RequestParam(required = false) String title,
         @RequestParam(required = false) IncidentStatus status,
         @RequestParam(required = false) Priority priority,
+        @RequestParam(required = false) String assignedTo,
         Pageable pageable) {
 
-    return service.searchIncidents(title, status, priority, pageable);
+    return service.searchIncidents(title, status, priority, assignedTo, pageable);
+}
+@GetMapping("/notifications")
+public List<Notification> getRecentNotifications() {
+    return service.getRecentNotifications();
+}
+
+@GetMapping("/{id}/notifications")
+public List<Notification> getIncidentNotifications(@PathVariable Long id) {
+    return service.getNotificationsByIncident(id);
 }
 }
