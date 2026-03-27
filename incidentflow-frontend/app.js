@@ -98,6 +98,8 @@ const exportDashboardBtn = document.getElementById("exportDashboardBtn");
 const assignedSearch = document.getElementById("assignedSearch");
 const notificationsContainer = document.getElementById("notificationsContainer");
 const showAllNotificationsBtn = document.getElementById("showAllNotificationsBtn");
+const currentStatusInfo = document.getElementById("currentStatusInfo");
+const nextStatusInfo = document.getElementById("nextStatusInfo");
 let allNotificationsLoaded = false;
 async function apiFetch(url, options = {}) {
   return fetch(url, {
@@ -438,6 +440,8 @@ function clearStatusForm() {
   if (newStatus) {
     newStatus.innerHTML = `<option value="">Select</option>`;
   }
+  if (currentStatusInfo) currentStatusInfo.textContent = "";
+  if (nextStatusInfo) nextStatusInfo.textContent = "";
   setStatusMsg("", null);
 }
 /* ---------- Fill forms ---------- */
@@ -451,6 +455,7 @@ function fillAssignFormFromIncident(incident) {
 function fillStatusFormFromIncident(incident) {
   if (statusIncidentId) statusIncidentId.value = incident.id ?? "";
   populateStatusOptions(incident.status);
+  updateStatusGuidance(incident.status);
   setStatusMsg("", null);
   statusIncidentId?.scrollIntoView({ behavior: "smooth", block: "center" });
 }
@@ -768,6 +773,23 @@ function populateStatusOptions(currentStatus) {
     option.textContent = status;
     newStatus.appendChild(option);
   });
+}
+function updateStatusGuidance(currentStatus) {
+  if (currentStatusInfo) {
+    currentStatusInfo.textContent = `Current Status: ${currentStatus}`;
+  }
+
+  const allowed = getAllowedNextStatuses(currentStatus);
+
+  if (nextStatusInfo) {
+    if (!allowed.length) {
+      nextStatusInfo.textContent = "No valid next status available.";
+    } else if (allowed.length === 1) {
+      nextStatusInfo.textContent = `Allowed Next Status: ${allowed[0]}`;
+    } else {
+      nextStatusInfo.textContent = `Allowed Next Statuses: ${allowed.join(", ")}`;
+    }
+  }
 }
 function startEdit(commentId) {
 

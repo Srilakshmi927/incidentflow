@@ -401,3 +401,9 @@ tr:hover {
 .modalBody span {
   color: #d0d8e8;
 }
+
+.helperText {
+  margin-top: 6px;
+  font-size: 13px;
+  color: #b8c7e0;
+}
