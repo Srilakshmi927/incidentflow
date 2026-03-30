@@ -196,19 +196,19 @@ tr:hover {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0,0,0,0.65);
+  background: rgba(0, 0, 0, 0.6);
+
   display: flex;
-  align-items: center;
   justify-content: center;
-  z-index: 999;
+  align-items: center;
 }
 
 .modalContent {
-  background: var(--card);
-  border-radius: 14px;
-  width: 500px;
-  max-width: 90%;
-  border: 1px solid var(--border);
+  max-height: 85vh;   /* ✅ limits height */
+  overflow-y: auto;   /* ✅ enables scrolling inside modal */
+  width: 500px;       /* adjust if needed */
+  background: #0f1b2d;
+  border-radius: 10px;
   padding: 16px;
 }
 
@@ -406,4 +406,23 @@ tr:hover {
   margin-top: 6px;
   font-size: 13px;
   color: #b8c7e0;
+}
+#timelineSection {
+  margin-top: 18px;
+}
+
+.timeline-item {
+  border-left: 3px solid #3b82f6;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+}
+
+.timeline-item p {
+  margin: 0 0 4px;
+}
+
+.timeline-item small {
+  color: #9fb3d1;
 }

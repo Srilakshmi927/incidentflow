@@ -163,6 +163,7 @@ public List<Notification> getRecentNotifications() {
     return service.getRecentNotifications();
 }
 
+
 @GetMapping("/{id}/notifications")
 public List<Notification> getIncidentNotifications(@PathVariable Long id) {
     return service.getNotificationsByIncident(id);

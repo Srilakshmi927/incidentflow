@@ -100,6 +100,8 @@ const notificationsContainer = document.getElementById("notificationsContainer")
 const showAllNotificationsBtn = document.getElementById("showAllNotificationsBtn");
 const currentStatusInfo = document.getElementById("currentStatusInfo");
 const nextStatusInfo = document.getElementById("nextStatusInfo");
+const timelineSection = document.getElementById("timelineSection");
+const timelineContainer = document.getElementById("timelineContainer");
 let allNotificationsLoaded = false;
 async function apiFetch(url, options = {}) {
   return fetch(url, {
@@ -191,7 +193,43 @@ if (showAllNotificationsBtn) {
     console.error("loadNotifications error:", e);
   }
 }
+async function loadIncidentTimeline(incidentId) {
+  if (!timelineContainer) return;
 
+  try {
+    const res = await apiFetch(`${API_BASE}/${incidentId}/notifications`, {
+      method: "GET",
+      headers: {}
+    });
+
+    if (!res.ok) throw new Error("Failed to load incident history");
+
+    const items = await res.json();
+
+    if (!items || items.length === 0) {
+      timelineContainer.innerHTML = "<p>No history yet.</p>";
+      return;
+    }
+
+    timelineContainer.innerHTML = "";
+
+    items.forEach(item => {
+      const div = document.createElement("div");
+      div.className = "timeline-item";
+
+      div.innerHTML = `
+        <p>${item.message}</p>
+        <small>${item.recipientRole} • ${formatDate(item.createdAt)}</small>
+      `;
+
+      timelineContainer.appendChild(div);
+    });
+
+  } catch (e) {
+    timelineContainer.innerHTML = "<p>Unable to load incident history.</p>";
+    console.error("loadIncidentTimeline error:", e);
+  }
+}
 
 
 async function loadAllNotifications() {
@@ -1112,9 +1150,12 @@ async function viewIncidentDetails(id) {
       <p><strong>Reopen Reason:</strong> <span>${i.reopenReason ?? "-"}</span></p>
     `;
 
-    const commentsSection = document.getElementById("commentsSection");
     if (commentsSection) {
       commentsSection.dataset.incidentId = String(id);
+    }
+
+    if (timelineSection) {
+      timelineSection.dataset.incidentId = String(id);
     }
 
     const commentInput = document.getElementById("newComment");
@@ -1123,6 +1164,7 @@ async function viewIncidentDetails(id) {
     }
 
     await loadComments(id);
+    await loadIncidentTimeline(id);
     openModal();
 
   } catch (e) {
