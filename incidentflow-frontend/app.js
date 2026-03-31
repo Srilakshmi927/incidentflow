@@ -102,6 +102,7 @@ const currentStatusInfo = document.getElementById("currentStatusInfo");
 const nextStatusInfo = document.getElementById("nextStatusInfo");
 const timelineSection = document.getElementById("timelineSection");
 const timelineContainer = document.getElementById("timelineContainer");
+const toggleTimelineBtn = document.getElementById("toggleTimelineBtn");
 let allNotificationsLoaded = false;
 async function apiFetch(url, options = {}) {
   return fetch(url, {
@@ -125,7 +126,19 @@ function getLoggedInRoleOrBlock() {
   }
   return role;
 }
+function toggleTimeline() {
+  if (!timelineContainer || !toggleTimelineBtn) return;
 
+  const isHidden = timelineContainer.classList.contains("hidden");
+
+  if (isHidden) {
+    timelineContainer.classList.remove("hidden");
+    toggleTimelineBtn.textContent = "Hide";
+  } else {
+    timelineContainer.classList.add("hidden");
+    toggleTimelineBtn.textContent = "Show";
+  }
+}
 function applyRoleBasedUI() {
   const role = getRole();
   if (!role) return;
@@ -1164,6 +1177,12 @@ async function viewIncidentDetails(id) {
     }
 
     await loadComments(id);
+    if (timelineContainer) {
+  timelineContainer.classList.remove("hidden");
+}
+if (toggleTimelineBtn) {
+  toggleTimelineBtn.textContent = "Hide";
+}
     await loadIncidentTimeline(id);
     openModal();
 
@@ -1447,7 +1466,9 @@ if (assignedSearch) {
 /* =========================
    Event bindings
    ========================= */
-
+if (toggleTimelineBtn) {
+  toggleTimelineBtn.addEventListener("click", toggleTimeline);
+}
 // Filters + Paging
 if (applyBtn) applyBtn.addEventListener("click", () => { page = 0; refreshAll(); });
 

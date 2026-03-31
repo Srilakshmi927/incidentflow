@@ -426,3 +426,14 @@ tr:hover {
 .timeline-item small {
   color: #9fb3d1;
 }
+.timelineHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 18px;
+  margin-bottom: 10px;
+}
+
+.hidden {
+  display: none;
+}
