@@ -103,6 +103,8 @@ const nextStatusInfo = document.getElementById("nextStatusInfo");
 const timelineSection = document.getElementById("timelineSection");
 const timelineContainer = document.getElementById("timelineContainer");
 const toggleTimelineBtn = document.getElementById("toggleTimelineBtn");
+const toggleCommentsBtn = document.getElementById("toggleCommentsBtn");
+const commentsContent = document.getElementById("commentsContent");
 let allNotificationsLoaded = false;
 async function apiFetch(url, options = {}) {
   return fetch(url, {
@@ -117,6 +119,19 @@ async function apiFetch(url, options = {}) {
 /* ---------- Helpers ---------- */
 function getRole() {
   return (sessionStorage.getItem("userRole") || "").toUpperCase();
+}
+function toggleComments() {
+  if (!commentsContent || !toggleCommentsBtn) return;
+
+  const isHidden = commentsContent.classList.contains("hidden");
+
+  if (isHidden) {
+    commentsContent.classList.remove("hidden");
+    toggleCommentsBtn.textContent = "Hide";
+  } else {
+    commentsContent.classList.add("hidden");
+    toggleCommentsBtn.textContent = "Show";
+  }
 }
 function getLoggedInRoleOrBlock() {
   const role = getRole();
@@ -1175,7 +1190,12 @@ async function viewIncidentDetails(id) {
     if (commentInput) {
       commentInput.value = "";
     }
-
+if (commentsContent) {
+  commentsContent.classList.remove("hidden");
+}
+if (toggleCommentsBtn) {
+  toggleCommentsBtn.textContent = "Hide";
+}
     await loadComments(id);
     if (timelineContainer) {
   timelineContainer.classList.remove("hidden");
@@ -1537,7 +1557,9 @@ if (closeModalBtn) closeModalBtn.addEventListener("click", closeModal);
 if (closeEditBtn) closeEditBtn.addEventListener("click", closeEditModal);
 if (cancelEditBtn) cancelEditBtn.addEventListener("click", closeEditModal);
 if (saveEditBtn) saveEditBtn.addEventListener("click", saveEditedIncident);
-
+if (toggleCommentsBtn) {
+  toggleCommentsBtn.addEventListener("click", toggleComments);
+}
 if (closeDeleteBtn) closeDeleteBtn.addEventListener("click", closeDeleteModal);
 if (cancelDeleteBtn) cancelDeleteBtn.addEventListener("click", closeDeleteModal);
 if (confirmDeleteBtn) confirmDeleteBtn.addEventListener("click", confirmDelete);
