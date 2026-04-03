@@ -271,7 +271,8 @@
 
       <div class="tableWrap">
         <table class="table">
-          <thead>
+          
+  <thead>
   <tr>
     <th>ID</th>
     <th>Title</th>
@@ -279,9 +280,10 @@
     <th>Status</th>
     <th>Assigned To</th>
     <th>Created</th>
+    <th>Comments</th>   <!-- NEW -->
+    <th>History</th>    <!-- NEW -->
     <th>SLA</th>
     <th>Actions</th>
-    
   </tr>
 </thead>
 
@@ -302,31 +304,38 @@
     <div class="modalHeader">
       <h3>Incident Details</h3>
       <button id="closeModalBtn" class="btn btn-secondary btn-sm" type="button">Close</button>
-
-
     </div>
 
-    <div id="modalBody" class="modalBody"></div>
-  <div id="commentsSection" data-incident-id="">
-  <div class="commentsHeader">
-    <h3>Incident Comments</h3>
-    <button id="toggleCommentsBtn" class="btn btn-secondary btn-sm" type="button">Hide</button>
-  </div>
+    <div class="detailsHeader">
+      <h3>Incident Summary</h3>
+      <button id="toggleDetailsBtn" class="btn btn-secondary btn-sm" type="button">Hide</button>
+    </div>
 
-  <div id="commentsContent">
-    <div id="commentsContainer"></div>
-    <input type="text" id="newComment" placeholder="Add comment" />
-    <button type="button" id="addCommentBtn">Add Comment</button>
+    <div id="detailsContent">
+      <div id="modalBody" class="modalBody"></div>
+    </div>
+
+    <div id="commentsSection" data-incident-id="">
+      <div class="commentsHeader">
+        <h3>Incident Comments</h3>
+        <button id="toggleCommentsBtn" class="btn btn-secondary btn-sm" type="button">Hide</button>
+      </div>
+
+      <div id="commentsContent">
+        <div id="commentsContainer"></div>
+        <input type="text" id="newComment" placeholder="Add comment">
+        <button type="button" id="addCommentBtn">Add Comment</button>
+      </div>
+    </div>
+
+    <div id="timelineSection" data-incident-id="">
+      <div class="timelineHeader">
+        <h3>Incident History</h3>
+        <button id="toggleTimelineBtn" class="btn btn-secondary btn-sm" type="button">Hide</button>
+      </div>
+      <div id="timelineContainer">No history yet.</div>
+    </div>
   </div>
-</div>
-<div id="timelineSection" data-incident-id="">
-  <div class="timelineHeader">
-    <h3>Incident History</h3>
-    <button id="toggleTimelineBtn" class="btn btn-secondary btn-sm" type="button">Hide</button>
-  </div>
-  <div id="timelineContainer">No history yet.</div>
-</div>
-</div>
 </div>
 <!-- Delete Confirmation Modal -->
 <div id="deleteModal" class="modal hidden">

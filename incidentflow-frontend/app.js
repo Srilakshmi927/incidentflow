@@ -70,6 +70,8 @@ const closeDeleteBtn = document.getElementById("closeDeleteBtn");
 const cancelDeleteBtn = document.getElementById("cancelDeleteBtn");
 const confirmDeleteBtn = document.getElementById("confirmDeleteBtn");
 const deleteText = document.getElementById("deleteText");
+const toggleDetailsBtn = document.getElementById("toggleDetailsBtn");
+const detailsContent = document.getElementById("detailsContent");
 
 /* Toast */
 const toastContainer = document.getElementById("toastContainer");
@@ -565,26 +567,33 @@ function renderRows(items) {
     const canDelete = isLoggedIn && role === "ADMIN";
     const showOps = isLoggedIn && role !== "EMPLOYEE";
 
-    tr.innerHTML = `
-      <td>${i.id ?? "-"}</td>
-      <td>${i.title ?? "-"}</td>
-      <td>${badge(i.priority)}</td>
-      <td>${badge(i.status)}</td>
-      <td>${isAssigned ? badge(i.assignedTo) : "<span class='unassigned'>Unassigned</span>"}</td>
-      <td>${formatDate(i.createdAt)}</td>
-      <td>${slaText}</td>
-      <td>
-        <div class="actionsCell">
-          <button class="btn btn-secondary btn-sm js-view" type="button">View</button>
+    const commentsCount = i.commentsCount ?? 0;
+const historyCount = i.historyCount ?? 0;
 
-          ${showOps ? `<button class="btn btn-secondary btn-sm js-assign" type="button">Assign</button>` : ""}
-          ${showOps ? `<button class="btn btn-ghost btn-sm js-status" type="button">Status</button>` : ""}
+tr.innerHTML = `
+  <td>${i.id ?? "-"}</td>
+  <td>${i.title ?? "-"}</td>
+  <td>${badge(i.priority)}</td>
+  <td>${badge(i.status)}</td>
+  <td>${isAssigned ? badge(i.assignedTo) : "<span class='unassigned'>Unassigned</span>"}</td>
+  <td>${formatDate(i.createdAt)}</td>
 
-          ${canEdit ? `<button class="btn btn-secondary btn-sm js-edit" type="button">Edit</button>` : ""}
-          ${canDelete ? `<button class="btn btn-ghost btn-sm js-delete" type="button">Delete</button>` : ""}
-        </div>
-      </td>
-    `;
+  <!-- NEW -->
+  <td><span class="count-badge">${commentsCount}</span></td>
+  <td><span class="count-badge">${historyCount}</span></td>
+
+  <td>${slaText}</td>
+
+  <td>
+    <div class="actionsCell">
+      <button class="btn btn-secondary btn-sm js-view" type="button">View</button>
+      ${showOps ? `<button class="btn btn-secondary btn-sm js-assign" type="button">Assign</button>` : ""}
+      ${showOps ? `<button class="btn btn-ghost btn-sm js-status" type="button">Status</button>` : ""}
+      ${canEdit ? `<button class="btn btn-secondary btn-sm js-edit" type="button">Edit</button>` : ""}
+      ${canDelete ? `<button class="btn btn-ghost btn-sm js-delete" type="button">Delete</button>` : ""}
+    </div>
+  </td>
+`;
 
     // ✅ Priority-based row highlight
     if (i.priority === "HIGH") {
@@ -750,7 +759,6 @@ async function assignIncident(incidentId, assignedToVal) {
     clearAssignForm();
     page = 0;
     await refreshAll();
-
   } catch (e) {
     showToast(e.message || "Unable to assign incident.", "error");
     console.error("assignIncident error:", e);
@@ -808,6 +816,19 @@ async function loadComments(incidentId) {
   } catch (e) {
     const container = document.getElementById("commentsContainer");
     if (container) container.innerHTML = "<p>Unable to load comments.</p>";
+  }
+}
+function toggleDetails() {
+  if (!detailsContent || !toggleDetailsBtn) return;
+
+  const isHidden = detailsContent.classList.contains("hidden");
+
+  if (isHidden) {
+    detailsContent.classList.remove("hidden");
+    toggleDetailsBtn.textContent = "Hide";
+  } else {
+    detailsContent.classList.add("hidden");
+    toggleDetailsBtn.textContent = "Show";
   }
 }
 function getAllowedNextStatuses(currentStatus) {
@@ -872,7 +893,6 @@ function cancelEdit(commentId) {
   document.getElementById(`cancel-btn-${commentId}`).classList.add("hidden");
 }
 async function saveEdit(commentId) {
-
   const role = getRole();
 
   if (role !== "ADMIN" && role !== "SUPPORT") {
@@ -889,7 +909,6 @@ async function saveEdit(commentId) {
   }
 
   try {
-
     const url = `${API_BASE}/comments/${commentId}?comment=${encodeURIComponent(updatedComment)}&user=${encodeURIComponent(role)}`;
 
     const res = await apiFetch(url, {
@@ -906,14 +925,13 @@ async function saveEdit(commentId) {
 
     if (incidentId) {
       await loadComments(incidentId);
+      await loadIncidentTimeline(incidentId);
     }
 
+    await refreshAll(); // important
     showToast("Comment updated successfully", "success");
-
   } catch (e) {
-
     showToast(e.message || "Unable to update comment", "error");
-
   }
 }
 
@@ -960,6 +978,8 @@ async function addComment() {
 
     commentInput.value = "";
     await loadComments(incidentId);
+    await loadIncidentTimeline(incidentId);
+    await refreshAll(); // important
     showToast("Comment added successfully", "success");
   } catch (e) {
     showToast(e.message || "Unable to add comment", "error");
@@ -1010,7 +1030,6 @@ async function editComment(commentId) {
   }
 }
 async function deleteComment(commentId) {
-
   const role = getRole();
 
   if (role !== "ADMIN" && role !== "SUPPORT") {
@@ -1022,7 +1041,6 @@ async function deleteComment(commentId) {
   if (!confirmed) return;
 
   try {
-
     const url = `${API_BASE}/comments/${commentId}?user=${encodeURIComponent(role)}`;
 
     const res = await apiFetch(url, {
@@ -1039,43 +1057,13 @@ async function deleteComment(commentId) {
 
     if (incidentId) {
       await loadComments(incidentId);
+      await loadIncidentTimeline(incidentId);
     }
 
+    await refreshAll(); // important
     showToast("Comment deleted successfully", "success");
-
   } catch (e) {
-
     showToast(e.message || "Unable to delete comment", "error");
-
-  }
-}
-async function assignIncident(incidentId, assignedToVal) {
-  const role = getLoggedInRoleOrBlock();
-  
-  if (!role) return;
-
-  const url = `${API_BASE}/${incidentId}/assign?assignedTo=${encodeURIComponent(assignedToVal)}/&userRole=${encodeURIComponent(role)}`;
- try {
-    const res = await apiFetch(url, { method: "PUT", headers: {} });
- 
-    if (!res.ok) {
-      let msg = `Failed (${res.status})`;
-      try {
-        const errJson = await res.json();
-        msg = errJson.error || msg;
-      } catch {
-        const txt = await res.text();
-        if (txt) msg = txt;
-      }
-      throw new Error(msg);
-    }
-
-    showToast("Incident assigned successfully", "success");
-    clearAssignForm();
-    page = 0;
-    await refreshAll();
-  } catch (e) {
-    showToast(e.message || "Unable to assign incident.", "error");
   }
 }
 
@@ -1203,7 +1191,14 @@ if (toggleCommentsBtn) {
 if (toggleTimelineBtn) {
   toggleTimelineBtn.textContent = "Hide";
 }
+if (detailsContent) {
+  detailsContent.classList.remove("hidden");
+}
+if (toggleDetailsBtn) {
+  toggleDetailsBtn.textContent = "Hide";
+}
     await loadIncidentTimeline(id);
+
     openModal();
 
   } catch (e) {
@@ -1394,6 +1389,7 @@ async function refreshAll() {
   await loadDashboard();
   await loadStatusChart();
   await loadNotifications();
+  
 }
 /* ---------- CSV export (optional if button exists) ---------- */
 function downloadCSV(filename, rows) {
@@ -1551,6 +1547,9 @@ if (showAllNotificationsBtn) {
       await loadAllNotifications();
     }
   });
+}
+if (toggleDetailsBtn) {
+  toggleDetailsBtn.addEventListener("click", toggleDetails);
 }
 // Modals
 if (closeModalBtn) closeModalBtn.addEventListener("click", closeModal);
