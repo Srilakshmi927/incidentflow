@@ -9,7 +9,7 @@ const AUTH_BASE = `http://${API_HOST}:8080/api/auth`;
 
 let page = 0;
 let totalPages = 1;
-
+let activeIncidentId = null;
 /* ---------- DOM ---------- */
 const incidentsBody = document.getElementById("incidentsBody");
 const statusFilter = document.getElementById("statusFilter");
@@ -402,12 +402,13 @@ function openModal() {
   if (!incidentModal) return;
   incidentModal.classList.remove("hidden");
 }
+
 function closeModal() {
   if (!incidentModal || !modalBody) return;
   incidentModal.classList.add("hidden");
   modalBody.innerHTML = "";
+  activeIncidentId = null;
 }
-
 function closeEditModal() {
   if (editModal) editModal.classList.add("hidden");
 }
@@ -733,7 +734,7 @@ async function createIncident() {
     showToast("Incident created successfully", "success");
     clearForm();
     page = 0;
-    await refreshAll();
+    await refreshAfterAction();
   } catch (e) {
     showToast(e.message || "Unable to create incident.", "error");
   }
@@ -758,12 +759,51 @@ async function assignIncident(incidentId, assignedToVal) {
     showToast("Incident assigned successfully", "success");
     clearAssignForm();
     page = 0;
-    await refreshAll();
+    await refreshAfterAction();
   } catch (e) {
     showToast(e.message || "Unable to assign incident.", "error");
     console.error("assignIncident error:", e);
   }
 }
+async function refreshActiveModal() {
+  if (!activeIncidentId) return;
+  if (!incidentModal || incidentModal.classList.contains("hidden")) return;
+
+  try {
+    const res = await apiFetch(`${API_BASE}/${activeIncidentId}`, { method: "GET", headers: {} });
+    if (!res.ok) throw new Error("Failed to refresh incident details");
+
+    const i = await res.json();
+
+    if (!modalBody) return;
+
+    modalBody.innerHTML = `
+      <p><strong>ID:</strong> <span>${i.id}</span></p>
+      <p><strong>Title:</strong> <span>${i.title}</span></p>
+      <p><strong>Description:</strong> <span>${i.description}</span></p>
+      <p><strong>Priority:</strong> <span>${i.priority}</span></p>
+      <p><strong>Status:</strong> <span>${i.status}</span></p>
+      <p><strong>Assigned To:</strong> <span>${i.assignedTo ?? "Unassigned"}</span></p>
+      <p><strong>Created At:</strong> <span>${formatDate(i.createdAt)}</span></p>
+      <p><strong>Last Updated By:</strong> <span>${i.lastUpdatedBy ?? "-"}</span></p>
+      <p><strong>Last Updated At:</strong> <span>${i.lastUpdatedAt ? formatDate(i.lastUpdatedAt) : "-"}</span></p>
+      <p><strong>Resolution Notes:</strong> <span>${i.resolutionNotes ?? "-"}</span></p>
+      <p><strong>Reopen Reason:</strong> <span>${i.reopenReason ?? "-"}</span></p>
+    `;
+
+    await loadComments(activeIncidentId);
+    await loadIncidentTimeline(activeIncidentId);
+
+  } catch (e) {
+    console.error("refreshActiveModal error:", e);
+  }
+}
+
+async function refreshAfterAction() {
+  await refreshAfterAction();
+  await refreshActiveModal();
+}
+
 async function loadComments(incidentId) {
   try {
     const res = await apiFetch(`${API_BASE}/${incidentId}/comments`, {
@@ -923,17 +963,14 @@ async function saveEdit(commentId) {
 
     const incidentId = document.getElementById("commentsSection")?.dataset?.incidentId;
 
-    if (incidentId) {
-      await loadComments(incidentId);
-      await loadIncidentTimeline(incidentId);
-    }
 
-    await refreshAll(); // important
+    await refreshAfterAction(); // important
     showToast("Comment updated successfully", "success");
   } catch (e) {
     showToast(e.message || "Unable to update comment", "error");
   }
 }
+
 
 async function addComment() {
   const commentInput = document.getElementById("newComment");
@@ -977,9 +1014,15 @@ async function addComment() {
     }
 
     commentInput.value = "";
+
+    // only refresh the needed sections
     await loadComments(incidentId);
     await loadIncidentTimeline(incidentId);
-    await refreshAll(); // important
+    await loadIncidents();
+    await loadDashboard();
+    await loadStatusChart();
+    await loadNotifications();
+
     showToast("Comment added successfully", "success");
   } catch (e) {
     showToast(e.message || "Unable to add comment", "error");
@@ -1060,7 +1103,11 @@ async function deleteComment(commentId) {
       await loadIncidentTimeline(incidentId);
     }
 
-    await refreshAll(); // important
+    await loadIncidents();
+    await loadDashboard();
+    await loadStatusChart();
+    await loadNotifications();
+
     showToast("Comment deleted successfully", "success");
   } catch (e) {
     showToast(e.message || "Unable to delete comment", "error");
@@ -1136,7 +1183,7 @@ async function updateIncidentStatus() {
 
     // ✅ force incident list + dashboard + chart reload
     page = 0;
-    await refreshAll();
+    await refreshAfterAction();
 
   } catch (e) {
     showToast(e.message || "Unable to update status.", "error");
@@ -1146,10 +1193,11 @@ async function updateIncidentStatus() {
 async function viewIncidentDetails(id) {
   try {
     const res = await apiFetch(`${API_BASE}/${id}`, { method: "GET", headers: {} });
+    
     if (!res.ok) throw new Error("Failed to fetch incident details");
 
     const i = await res.json();
-
+activeIncidentId = id;
     if (!modalBody) return;
 
     modalBody.innerHTML = `
@@ -1247,7 +1295,7 @@ async function saveEditedIncident() {
 
     showToast("Incident updated successfully", "success");
     closeEditModal();
-    await refreshAll();
+    await refreshAfterAction();
   } catch (e) {
     showToast(e.message || "Unable to update incident", "error");
   }
@@ -1275,9 +1323,14 @@ async function confirmDelete() {
     }
 
     showToast("Incident deleted successfully", "success");
-    closeDeleteModal();
-    page = 0;
-    await refreshAll();
+closeDeleteModal();
+
+if (String(activeIncidentId) === String(id)) {
+  closeModal();
+}
+
+page = 0;
+await refreshAfterAction();
   } catch (e) {
     showToast(e.message || "Unable to delete incident", "error");
   }
@@ -1383,13 +1436,35 @@ async function loadStatusChart() {
   } catch {}
 }
 
-
 async function refreshAll() {
   await loadIncidents();
   await loadDashboard();
   await loadStatusChart();
   await loadNotifications();
-  
+  startAutoRefresh();
+  const el = document.getElementById("lastRefreshTime");
+  if (el) {
+    el.textContent = "Last updated: " + new Date().toLocaleTimeString();
+  }
+}
+let autoRefreshInterval = null;
+
+  function startAutoRefresh() {
+  if (autoRefreshInterval) return;
+
+  autoRefreshInterval = setInterval(async () => {
+    try {
+      // skip refresh if modal is open
+      if (incidentModal && !incidentModal.classList.contains("hidden")) {
+        return;
+      }
+
+      await refreshAll();
+      console.log("Auto-refreshed dashboard");
+    } catch (e) {
+      console.error("Auto refresh failed:", e);
+    }
+  }, 30000);
 }
 /* ---------- CSV export (optional if button exists) ---------- */
 function downloadCSV(filename, rows) {
@@ -1444,7 +1519,10 @@ async function exportIncidentsCSV() {
     showToast(e.message || "Export failed", "error");
   }
 }
-
+async function refreshAfterAction() {
+  await refreshAfterAction();
+  await refreshActiveModal();
+}
 async function exportDashboardCSV() {
   try {
     const res = await fetch(`${API_BASE}/dashboard`);
