@@ -6,7 +6,7 @@
 const API_HOST = window.location.hostname; // "localhost" or "127.0.0.1"
 const API_BASE = `http://${API_HOST}:8080/api/incidents`;
 const AUTH_BASE = `http://${API_HOST}:8080/api/auth`;
-
+let showRecentOnly = false;
 let page = 0;
 let totalPages = 1;
 let activeIncidentId = null;
@@ -107,6 +107,14 @@ const timelineContainer = document.getElementById("timelineContainer");
 const toggleTimelineBtn = document.getElementById("toggleTimelineBtn");
 const toggleCommentsBtn = document.getElementById("toggleCommentsBtn");
 const commentsContent = document.getElementById("commentsContent");
+const recentToggle = document.getElementById("recentOnlyToggle");
+
+if (recentToggle) {
+  recentToggle.addEventListener("change", async (e) => {
+    showRecentOnly = e.target.checked;
+    await loadIncidents(); // reload table
+  });
+}
 let allNotificationsLoaded = false;
 async function apiFetch(url, options = {}) {
   return fetch(url, {
@@ -531,13 +539,37 @@ function fillStatusFormFromIncident(incident) {
 /* =========================
    Render incidents table
    ========================= */
+function isRecentlyUpdated(timestamp) {
+  if (!timestamp) return false;
+
+  const updatedTime = new Date(timestamp).getTime();
+  const now = Date.now();
+
+  const diffMinutes = (now - updatedTime) / (1000 * 60);
+
+  return diffMinutes <= 2; // last 2 minutes
+}
+
 function renderRows(items) {
   incidentsBody.innerHTML = "";
 
   const role = getRole(); // ADMIN / SUPPORT / EMPLOYEE
+  if (showRecentOnly && items.length > 0) {
+  const hasRecent = items.some(i => isRecentlyUpdated(i.lastUpdatedAt));
+  if (!hasRecent) {
+    incidentsBody.innerHTML = "<tr><td colspan='10'>No recently updated incidents</td></tr>";
+    return;
+  }
+}
+items.forEach((i) => {
 
-  items.forEach((i) => {
+  const isRecent = isRecentlyUpdated(i.lastUpdatedAt);
+
+  if (showRecentOnly && !isRecent) {
+    return;
+  }
     const tr = document.createElement("tr");
+    const recentBadge = isRecent ? `<span class="recent-badge">NEW</span>` : "";
     const isAssigned = i.assignedTo && i.assignedTo.trim() !== "";
 
     // ✅ SLA display
@@ -573,7 +605,7 @@ const historyCount = i.historyCount ?? 0;
 
 tr.innerHTML = `
   <td>${i.id ?? "-"}</td>
-  <td>${i.title ?? "-"}</td>
+  <td>${i.title ?? "-"} ${recentBadge}</td>
   <td>${badge(i.priority)}</td>
   <td>${badge(i.status)}</td>
   <td>${isAssigned ? badge(i.assignedTo) : "<span class='unassigned'>Unassigned</span>"}</td>
@@ -610,7 +642,10 @@ if (i.slaBreached) {
 } else if (i.slaDueSoon) {
   tr.style.backgroundColor = "#4a341c";
 }
-
+if (isRecent) {
+  tr.style.backgroundColor = "rgba(34,197,94,0.12)"; // green highlight
+  tr.style.borderLeft = "4px solid #22c55e";
+}
 tr.style.color = "#f5f7fb";
 
 
@@ -800,7 +835,7 @@ async function refreshActiveModal() {
 }
 
 async function refreshAfterAction() {
-  await refreshAfterAction();
+  await refreshAll();
   await refreshActiveModal();
 }
 
