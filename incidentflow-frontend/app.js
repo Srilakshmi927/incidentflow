@@ -12,6 +12,8 @@ let totalPages = 1;
 let activeIncidentId = null;
 /* ---------- DOM ---------- */
 const incidentsBody = document.getElementById("incidentsBody");
+const generateAiSummaryBtn = document.getElementById("generateAiSummaryBtn");
+const aiSummaryBox = document.getElementById("aiSummaryBox");
 const statusFilter = document.getElementById("statusFilter");
 const priorityFilter = document.getElementById("priorityFilter");
 const sortSelect = document.getElementById("sortSelect");
@@ -1233,6 +1235,9 @@ async function viewIncidentDetails(id) {
 
     const i = await res.json();
 activeIncidentId = id;
+if (aiSummaryBox) {
+  aiSummaryBox.textContent = "No AI summary generated yet.";
+}
     if (!modalBody) return;
 
     modalBody.innerHTML = `
@@ -1518,7 +1523,35 @@ function downloadCSV(filename, rows) {
   link.download = filename;
   link.click();
 }
+async function generateAiSummary() {
+  if (!activeIncidentId) {
+    showToast("No active incident selected", "error");
+    return;
+  }
 
+  if (!aiSummaryBox) return;
+
+  try {
+    aiSummaryBox.textContent = "Generating AI summary...";
+
+    const res = await apiFetch(`${API_BASE}/${activeIncidentId}/ai-summary`, {
+      method: "GET",
+      headers: {}
+    });
+
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(txt || "Failed to generate AI summary");
+    }
+
+    const data = await res.json();
+    aiSummaryBox.textContent = data.summary || "No summary returned.";
+
+  } catch (e) {
+    aiSummaryBox.textContent = "Unable to generate AI summary.";
+    showToast(e.message || "AI summary failed", "error");
+  }
+}
 async function exportIncidentsCSV() {
   try {
     const status = statusFilter?.value || "";
@@ -1608,6 +1641,9 @@ if (titleSearch) {
       refreshAll();
     }
   });
+}
+if (generateAiSummaryBtn) {
+  generateAiSummaryBtn.addEventListener("click", generateAiSummary);
 }
 
 if (resetBtn) applyBtn?.addEventListener && resetBtn.addEventListener("click", () => {

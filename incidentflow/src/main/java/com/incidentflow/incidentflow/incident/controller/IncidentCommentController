@@ -1,7 +1,8 @@
 @RestController
 @RequestMapping("/api/incidents/{incidentId}/comments")
 public class IncidentCommentController {
-
+    List<IncidentComment> findByIncidentIdOrderByCreatedAtAsc(Long incidentId);
+    List<Notification> findByIncidentIdOrderByCreatedAtAsc(Long incidentId);
     private final IncidentCommentService service;
 
     public IncidentCommentController(IncidentCommentService service) {

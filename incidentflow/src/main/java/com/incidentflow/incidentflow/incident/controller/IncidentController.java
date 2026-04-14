@@ -29,7 +29,7 @@ import com.incidentflow.incidentflow.incident.entity.IncidentActivity;
 import com.incidentflow.incidentflow.incident.entity.IncidentComment;
 import com.incidentflow.incidentflow.incident.entity.Notification;
 import com.incidentflow.incidentflow.incident.service.IncidentService;
-
+import com.incidentflow.incidentflow.incident.dto.AiSummaryResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpSession;
@@ -163,6 +163,11 @@ public List<Notification> getRecentNotifications() {
     return service.getRecentNotifications();
 }
 
+@GetMapping("/{id}/ai-summary")
+public AiSummaryResponse getAiSummary(@PathVariable Long id) {
+    String summary = service.generateAiSummary(id);
+    return new AiSummaryResponse(summary);
+}
 
 @GetMapping("/{id}/notifications")
 public List<Notification> getIncidentNotifications(@PathVariable Long id) {

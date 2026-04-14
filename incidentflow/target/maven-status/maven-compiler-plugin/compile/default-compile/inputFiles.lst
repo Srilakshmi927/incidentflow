@@ -7,6 +7,7 @@ D:\incidentflow\incidentflow\src\main\java\com\incidentflow\incidentflow\common\
 D:\incidentflow\incidentflow\src\main\java\com\incidentflow\incidentflow\common\exception\NotFoundException.java
 D:\incidentflow\incidentflow\src\main\java\com\incidentflow\incidentflow\incident\controller\AuthController.java
 D:\incidentflow\incidentflow\src\main\java\com\incidentflow\incidentflow\incident\controller\IncidentController.java
+D:\incidentflow\incidentflow\src\main\java\com\incidentflow\incidentflow\incident\dto\AiSummaryResponse.java
 D:\incidentflow\incidentflow\src\main\java\com\incidentflow\incidentflow\incident\dto\AssignIncidentRequest.java
 D:\incidentflow\incidentflow\src\main\java\com\incidentflow\incidentflow\incident\dto\CreateIncidentRequest.java
 D:\incidentflow\incidentflow\src\main\java\com\incidentflow\incidentflow\incident\dto\DashboardSummary.java

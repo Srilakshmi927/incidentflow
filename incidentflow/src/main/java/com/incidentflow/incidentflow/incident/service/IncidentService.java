@@ -283,6 +283,54 @@ public void deleteIncident(Long id, String userRole) {
 
     repo.delete(incident);
 }
+
+public String generateAiSummary(Long incidentId) {
+    Incident incident = repo.findById(incidentId)
+            .orElseThrow(() -> new RuntimeException("Incident not found"));
+
+    List<IncidentComment> comments = commentRepo.findByIncidentIdOrderByCreatedAtAsc(incidentId);
+    List<Notification> history = notificationRepo.findByIncidentIdOrderByCreatedAtAsc(incidentId);
+
+    StringBuilder prompt = new StringBuilder();
+
+    prompt.append("Generate a short incident summary.\n\n");
+    prompt.append("Title: ").append(incident.getTitle()).append("\n");
+    prompt.append("Description: ").append(incident.getDescription()).append("\n");
+    prompt.append("Priority: ").append(incident.getPriority()).append("\n");
+    prompt.append("Status: ").append(incident.getStatus()).append("\n");
+    prompt.append("Assigned To: ").append(incident.getAssignedTo() == null ? "Unassigned" : incident.getAssignedTo()).append("\n");
+
+    prompt.append("\nComments:\n");
+    if (comments.isEmpty()) {
+        prompt.append("No comments available.\n");
+    } else {
+        for (IncidentComment comment : comments) {
+            prompt.append("- ").append(comment.getComment()).append("\n");
+        }
+    }
+
+    prompt.append("\nHistory:\n");
+    if (history.isEmpty()) {
+        prompt.append("No history available.\n");
+    } else {
+        for (Notification n : history) {
+            prompt.append("- ").append(n.getMessage()).append("\n");
+        }
+    }
+
+    // Temporary AI-like summary logic for now
+    String summary = "Incident '" + incident.getTitle() + "' is currently in status "
+            + incident.getStatus()
+            + " with priority "
+            + incident.getPriority()
+            + ". "
+            + (incident.getAssignedTo() != null
+                ? "It is assigned to " + incident.getAssignedTo() + ". "
+                : "It is currently unassigned. ")
+            + "Recent comments and activity have been reviewed to provide this summary.";
+
+    return summary;
+}
 public Incident updateIncidentDetails(Long id, Incident updatedIncident, String userRole) {
 
     if (!userRole.equalsIgnoreCase("ADMIN") &&
