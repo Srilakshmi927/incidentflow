@@ -259,8 +259,10 @@ public Page<Incident> getIncidents(IncidentStatus status, Priority priority, Pag
     }
 
     // Evaluate SLA for each incident
-    page.getContent().forEach(this::evaluateSla);
-
+    page.getContent().forEach(incident -> {
+    incident.setCommentsCount(commentRepo.countByIncidentId(incident.getId()));
+    incident.setHistoryCount(notificationRepo.countByIncidentId(incident.getId()));
+});
     return page;
 }
 
@@ -335,5 +337,7 @@ public Page<Incident> searchIncidents(String title,
                                       Pageable pageable) {
     return repo.searchIncidents(title, status, priority, assignedTo, pageable);
 }
+
+
 
 }

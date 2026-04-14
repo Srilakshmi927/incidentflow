@@ -1,6 +1,4 @@
 package com.incidentflow.incidentflow.incident.entity;
-
-import java.beans.Transient;
 import java.time.Duration;
 import java.time.LocalDateTime;
 
@@ -17,6 +15,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 @Entity
 @Table(name = "incidents")
 public class Incident {
@@ -32,6 +31,9 @@ private String lastUpdatedBy;
 
 @Column(name = "last_updated_at")
 private java.time.LocalDateTime lastUpdatedAt;
+
+    public Incident() {
+    }
 
 public String getLastUpdatedBy() { return lastUpdatedBy; }
 public void setLastUpdatedBy(String lastUpdatedBy) { this.lastUpdatedBy = lastUpdatedBy; }
@@ -77,6 +79,7 @@ private boolean slaBreached = false;
     public String getResolutionNotes() {
     return resolutionNotes;
 }
+
 
 public void setResolutionNotes(String resolutionNotes) {
     this.resolutionNotes = resolutionNotes;
@@ -129,4 +132,26 @@ public boolean isSlaDueSoon() {
     public void setId(long id) {
         this.id = id;
     }
+
+@Transient
+private Long commentsCount;
+
+@Transient
+private Long historyCount;
+
+public Long getCommentsCount() {
+    return commentsCount;
+}
+
+public void setCommentsCount(Long commentsCount) {
+    this.commentsCount = commentsCount;
+}
+
+public Long getHistoryCount() {
+    return historyCount;
+}
+
+public void setHistoryCount(Long historyCount) {
+    this.historyCount = historyCount;
+}
 }

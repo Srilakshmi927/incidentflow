@@ -6,10 +6,10 @@
 const API_HOST = window.location.hostname; // "localhost" or "127.0.0.1"
 const API_BASE = `http://${API_HOST}:8080/api/incidents`;
 const AUTH_BASE = `http://${API_HOST}:8080/api/auth`;
-
+let showRecentOnly = false;
 let page = 0;
 let totalPages = 1;
-
+let activeIncidentId = null;
 /* ---------- DOM ---------- */
 const incidentsBody = document.getElementById("incidentsBody");
 const statusFilter = document.getElementById("statusFilter");
@@ -70,6 +70,8 @@ const closeDeleteBtn = document.getElementById("closeDeleteBtn");
 const cancelDeleteBtn = document.getElementById("cancelDeleteBtn");
 const confirmDeleteBtn = document.getElementById("confirmDeleteBtn");
 const deleteText = document.getElementById("deleteText");
+const toggleDetailsBtn = document.getElementById("toggleDetailsBtn");
+const detailsContent = document.getElementById("detailsContent");
 
 /* Toast */
 const toastContainer = document.getElementById("toastContainer");
@@ -98,6 +100,21 @@ const exportDashboardBtn = document.getElementById("exportDashboardBtn");
 const assignedSearch = document.getElementById("assignedSearch");
 const notificationsContainer = document.getElementById("notificationsContainer");
 const showAllNotificationsBtn = document.getElementById("showAllNotificationsBtn");
+const currentStatusInfo = document.getElementById("currentStatusInfo");
+const nextStatusInfo = document.getElementById("nextStatusInfo");
+const timelineSection = document.getElementById("timelineSection");
+const timelineContainer = document.getElementById("timelineContainer");
+const toggleTimelineBtn = document.getElementById("toggleTimelineBtn");
+const toggleCommentsBtn = document.getElementById("toggleCommentsBtn");
+const commentsContent = document.getElementById("commentsContent");
+const recentToggle = document.getElementById("recentOnlyToggle");
+
+if (recentToggle) {
+  recentToggle.addEventListener("change", async (e) => {
+    showRecentOnly = e.target.checked;
+    await loadIncidents(); // reload table
+  });
+}
 let allNotificationsLoaded = false;
 async function apiFetch(url, options = {}) {
   return fetch(url, {
@@ -113,6 +130,19 @@ async function apiFetch(url, options = {}) {
 function getRole() {
   return (sessionStorage.getItem("userRole") || "").toUpperCase();
 }
+function toggleComments() {
+  if (!commentsContent || !toggleCommentsBtn) return;
+
+  const isHidden = commentsContent.classList.contains("hidden");
+
+  if (isHidden) {
+    commentsContent.classList.remove("hidden");
+    toggleCommentsBtn.textContent = "Hide";
+  } else {
+    commentsContent.classList.add("hidden");
+    toggleCommentsBtn.textContent = "Show";
+  }
+}
 function getLoggedInRoleOrBlock() {
   const role = getRole();
   if (!role) {
@@ -121,7 +151,19 @@ function getLoggedInRoleOrBlock() {
   }
   return role;
 }
+function toggleTimeline() {
+  if (!timelineContainer || !toggleTimelineBtn) return;
 
+  const isHidden = timelineContainer.classList.contains("hidden");
+
+  if (isHidden) {
+    timelineContainer.classList.remove("hidden");
+    toggleTimelineBtn.textContent = "Hide";
+  } else {
+    timelineContainer.classList.add("hidden");
+    toggleTimelineBtn.textContent = "Show";
+  }
+}
 function applyRoleBasedUI() {
   const role = getRole();
   if (!role) return;
@@ -189,7 +231,43 @@ if (showAllNotificationsBtn) {
     console.error("loadNotifications error:", e);
   }
 }
+async function loadIncidentTimeline(incidentId) {
+  if (!timelineContainer) return;
 
+  try {
+    const res = await apiFetch(`${API_BASE}/${incidentId}/notifications`, {
+      method: "GET",
+      headers: {}
+    });
+
+    if (!res.ok) throw new Error("Failed to load incident history");
+
+    const items = await res.json();
+
+    if (!items || items.length === 0) {
+      timelineContainer.innerHTML = "<p>No history yet.</p>";
+      return;
+    }
+
+    timelineContainer.innerHTML = "";
+
+    items.forEach(item => {
+      const div = document.createElement("div");
+      div.className = "timeline-item";
+
+      div.innerHTML = `
+        <p>${item.message}</p>
+        <small>${item.recipientRole} • ${formatDate(item.createdAt)}</small>
+      `;
+
+      timelineContainer.appendChild(div);
+    });
+
+  } catch (e) {
+    timelineContainer.innerHTML = "<p>Unable to load incident history.</p>";
+    console.error("loadIncidentTimeline error:", e);
+  }
+}
 
 
 async function loadAllNotifications() {
@@ -332,12 +410,13 @@ function openModal() {
   if (!incidentModal) return;
   incidentModal.classList.remove("hidden");
 }
+
 function closeModal() {
   if (!incidentModal || !modalBody) return;
   incidentModal.classList.add("hidden");
   modalBody.innerHTML = "";
+  activeIncidentId = null;
 }
-
 function closeEditModal() {
   if (editModal) editModal.classList.add("hidden");
 }
@@ -438,6 +517,8 @@ function clearStatusForm() {
   if (newStatus) {
     newStatus.innerHTML = `<option value="">Select</option>`;
   }
+  if (currentStatusInfo) currentStatusInfo.textContent = "";
+  if (nextStatusInfo) nextStatusInfo.textContent = "";
   setStatusMsg("", null);
 }
 /* ---------- Fill forms ---------- */
@@ -451,19 +532,44 @@ function fillAssignFormFromIncident(incident) {
 function fillStatusFormFromIncident(incident) {
   if (statusIncidentId) statusIncidentId.value = incident.id ?? "";
   populateStatusOptions(incident.status);
+  updateStatusGuidance(incident.status);
   setStatusMsg("", null);
   statusIncidentId?.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 /* =========================
    Render incidents table
    ========================= */
+function isRecentlyUpdated(timestamp) {
+  if (!timestamp) return false;
+
+  const updatedTime = new Date(timestamp).getTime();
+  const now = Date.now();
+
+  const diffMinutes = (now - updatedTime) / (1000 * 60);
+
+  return diffMinutes <= 2; // last 2 minutes
+}
+
 function renderRows(items) {
   incidentsBody.innerHTML = "";
 
   const role = getRole(); // ADMIN / SUPPORT / EMPLOYEE
+  if (showRecentOnly && items.length > 0) {
+  const hasRecent = items.some(i => isRecentlyUpdated(i.lastUpdatedAt));
+  if (!hasRecent) {
+    incidentsBody.innerHTML = "<tr><td colspan='10'>No recently updated incidents</td></tr>";
+    return;
+  }
+}
+items.forEach((i) => {
 
-  items.forEach((i) => {
+  const isRecent = isRecentlyUpdated(i.lastUpdatedAt);
+
+  if (showRecentOnly && !isRecent) {
+    return;
+  }
     const tr = document.createElement("tr");
+    const recentBadge = isRecent ? `<span class="recent-badge">NEW</span>` : "";
     const isAssigned = i.assignedTo && i.assignedTo.trim() !== "";
 
     // ✅ SLA display
@@ -494,26 +600,33 @@ function renderRows(items) {
     const canDelete = isLoggedIn && role === "ADMIN";
     const showOps = isLoggedIn && role !== "EMPLOYEE";
 
-    tr.innerHTML = `
-      <td>${i.id ?? "-"}</td>
-      <td>${i.title ?? "-"}</td>
-      <td>${badge(i.priority)}</td>
-      <td>${badge(i.status)}</td>
-      <td>${isAssigned ? badge(i.assignedTo) : "<span class='unassigned'>Unassigned</span>"}</td>
-      <td>${formatDate(i.createdAt)}</td>
-      <td>${slaText}</td>
-      <td>
-        <div class="actionsCell">
-          <button class="btn btn-secondary btn-sm js-view" type="button">View</button>
+    const commentsCount = i.commentsCount ?? 0;
+const historyCount = i.historyCount ?? 0;
 
-          ${showOps ? `<button class="btn btn-secondary btn-sm js-assign" type="button">Assign</button>` : ""}
-          ${showOps ? `<button class="btn btn-ghost btn-sm js-status" type="button">Status</button>` : ""}
+tr.innerHTML = `
+  <td>${i.id ?? "-"}</td>
+  <td>${i.title ?? "-"} ${recentBadge}</td>
+  <td>${badge(i.priority)}</td>
+  <td>${badge(i.status)}</td>
+  <td>${isAssigned ? badge(i.assignedTo) : "<span class='unassigned'>Unassigned</span>"}</td>
+  <td>${formatDate(i.createdAt)}</td>
 
-          ${canEdit ? `<button class="btn btn-secondary btn-sm js-edit" type="button">Edit</button>` : ""}
-          ${canDelete ? `<button class="btn btn-ghost btn-sm js-delete" type="button">Delete</button>` : ""}
-        </div>
-      </td>
-    `;
+  <!-- NEW -->
+  <td><span class="count-badge">${commentsCount}</span></td>
+  <td><span class="count-badge">${historyCount}</span></td>
+
+  <td>${slaText}</td>
+
+  <td>
+    <div class="actionsCell">
+      <button class="btn btn-secondary btn-sm js-view" type="button">View</button>
+      ${showOps ? `<button class="btn btn-secondary btn-sm js-assign" type="button">Assign</button>` : ""}
+      ${showOps ? `<button class="btn btn-ghost btn-sm js-status" type="button">Status</button>` : ""}
+      ${canEdit ? `<button class="btn btn-secondary btn-sm js-edit" type="button">Edit</button>` : ""}
+      ${canDelete ? `<button class="btn btn-ghost btn-sm js-delete" type="button">Delete</button>` : ""}
+    </div>
+  </td>
+`;
 
     // ✅ Priority-based row highlight
     if (i.priority === "HIGH") {
@@ -529,7 +642,10 @@ if (i.slaBreached) {
 } else if (i.slaDueSoon) {
   tr.style.backgroundColor = "#4a341c";
 }
-
+if (isRecent) {
+  tr.style.backgroundColor = "rgba(34,197,94,0.12)"; // green highlight
+  tr.style.borderLeft = "4px solid #22c55e";
+}
 tr.style.color = "#f5f7fb";
 
 
@@ -653,7 +769,7 @@ async function createIncident() {
     showToast("Incident created successfully", "success");
     clearForm();
     page = 0;
-    await refreshAll();
+    await refreshAfterAction();
   } catch (e) {
     showToast(e.message || "Unable to create incident.", "error");
   }
@@ -678,13 +794,51 @@ async function assignIncident(incidentId, assignedToVal) {
     showToast("Incident assigned successfully", "success");
     clearAssignForm();
     page = 0;
-    await refreshAll();
-
+    await refreshAfterAction();
   } catch (e) {
     showToast(e.message || "Unable to assign incident.", "error");
     console.error("assignIncident error:", e);
   }
 }
+async function refreshActiveModal() {
+  if (!activeIncidentId) return;
+  if (!incidentModal || incidentModal.classList.contains("hidden")) return;
+
+  try {
+    const res = await apiFetch(`${API_BASE}/${activeIncidentId}`, { method: "GET", headers: {} });
+    if (!res.ok) throw new Error("Failed to refresh incident details");
+
+    const i = await res.json();
+
+    if (!modalBody) return;
+
+    modalBody.innerHTML = `
+      <p><strong>ID:</strong> <span>${i.id}</span></p>
+      <p><strong>Title:</strong> <span>${i.title}</span></p>
+      <p><strong>Description:</strong> <span>${i.description}</span></p>
+      <p><strong>Priority:</strong> <span>${i.priority}</span></p>
+      <p><strong>Status:</strong> <span>${i.status}</span></p>
+      <p><strong>Assigned To:</strong> <span>${i.assignedTo ?? "Unassigned"}</span></p>
+      <p><strong>Created At:</strong> <span>${formatDate(i.createdAt)}</span></p>
+      <p><strong>Last Updated By:</strong> <span>${i.lastUpdatedBy ?? "-"}</span></p>
+      <p><strong>Last Updated At:</strong> <span>${i.lastUpdatedAt ? formatDate(i.lastUpdatedAt) : "-"}</span></p>
+      <p><strong>Resolution Notes:</strong> <span>${i.resolutionNotes ?? "-"}</span></p>
+      <p><strong>Reopen Reason:</strong> <span>${i.reopenReason ?? "-"}</span></p>
+    `;
+
+    await loadComments(activeIncidentId);
+    await loadIncidentTimeline(activeIncidentId);
+
+  } catch (e) {
+    console.error("refreshActiveModal error:", e);
+  }
+}
+
+async function refreshAfterAction() {
+  await refreshAll();
+  await refreshActiveModal();
+}
+
 async function loadComments(incidentId) {
   try {
     const res = await apiFetch(`${API_BASE}/${incidentId}/comments`, {
@@ -739,6 +893,19 @@ async function loadComments(incidentId) {
     if (container) container.innerHTML = "<p>Unable to load comments.</p>";
   }
 }
+function toggleDetails() {
+  if (!detailsContent || !toggleDetailsBtn) return;
+
+  const isHidden = detailsContent.classList.contains("hidden");
+
+  if (isHidden) {
+    detailsContent.classList.remove("hidden");
+    toggleDetailsBtn.textContent = "Hide";
+  } else {
+    detailsContent.classList.add("hidden");
+    toggleDetailsBtn.textContent = "Show";
+  }
+}
 function getAllowedNextStatuses(currentStatus) {
   switch (currentStatus) {
     case "OPEN":
@@ -769,6 +936,23 @@ function populateStatusOptions(currentStatus) {
     newStatus.appendChild(option);
   });
 }
+function updateStatusGuidance(currentStatus) {
+  if (currentStatusInfo) {
+    currentStatusInfo.textContent = `Current Status: ${currentStatus}`;
+  }
+
+  const allowed = getAllowedNextStatuses(currentStatus);
+
+  if (nextStatusInfo) {
+    if (!allowed.length) {
+      nextStatusInfo.textContent = "No valid next status available.";
+    } else if (allowed.length === 1) {
+      nextStatusInfo.textContent = `Allowed Next Status: ${allowed[0]}`;
+    } else {
+      nextStatusInfo.textContent = `Allowed Next Statuses: ${allowed.join(", ")}`;
+    }
+  }
+}
 function startEdit(commentId) {
 
   document.getElementById(`comment-text-${commentId}`).classList.add("hidden");
@@ -784,7 +968,6 @@ function cancelEdit(commentId) {
   document.getElementById(`cancel-btn-${commentId}`).classList.add("hidden");
 }
 async function saveEdit(commentId) {
-
   const role = getRole();
 
   if (role !== "ADMIN" && role !== "SUPPORT") {
@@ -801,7 +984,6 @@ async function saveEdit(commentId) {
   }
 
   try {
-
     const url = `${API_BASE}/comments/${commentId}?comment=${encodeURIComponent(updatedComment)}&user=${encodeURIComponent(role)}`;
 
     const res = await apiFetch(url, {
@@ -816,18 +998,14 @@ async function saveEdit(commentId) {
 
     const incidentId = document.getElementById("commentsSection")?.dataset?.incidentId;
 
-    if (incidentId) {
-      await loadComments(incidentId);
-    }
 
+    await refreshAfterAction(); // important
     showToast("Comment updated successfully", "success");
-
   } catch (e) {
-
     showToast(e.message || "Unable to update comment", "error");
-
   }
 }
+
 
 async function addComment() {
   const commentInput = document.getElementById("newComment");
@@ -871,7 +1049,15 @@ async function addComment() {
     }
 
     commentInput.value = "";
+
+    // only refresh the needed sections
     await loadComments(incidentId);
+    await loadIncidentTimeline(incidentId);
+    await loadIncidents();
+    await loadDashboard();
+    await loadStatusChart();
+    await loadNotifications();
+
     showToast("Comment added successfully", "success");
   } catch (e) {
     showToast(e.message || "Unable to add comment", "error");
@@ -922,7 +1108,6 @@ async function editComment(commentId) {
   }
 }
 async function deleteComment(commentId) {
-
   const role = getRole();
 
   if (role !== "ADMIN" && role !== "SUPPORT") {
@@ -934,7 +1119,6 @@ async function deleteComment(commentId) {
   if (!confirmed) return;
 
   try {
-
     const url = `${API_BASE}/comments/${commentId}?user=${encodeURIComponent(role)}`;
 
     const res = await apiFetch(url, {
@@ -951,43 +1135,17 @@ async function deleteComment(commentId) {
 
     if (incidentId) {
       await loadComments(incidentId);
+      await loadIncidentTimeline(incidentId);
     }
+
+    await loadIncidents();
+    await loadDashboard();
+    await loadStatusChart();
+    await loadNotifications();
 
     showToast("Comment deleted successfully", "success");
-
   } catch (e) {
-
     showToast(e.message || "Unable to delete comment", "error");
-
-  }
-}
-async function assignIncident(incidentId, assignedToVal) {
-  const role = getLoggedInRoleOrBlock();
-  
-  if (!role) return;
-
-  const url = `${API_BASE}/${incidentId}/assign?assignedTo=${encodeURIComponent(assignedToVal)}/&userRole=${encodeURIComponent(role)}`;
- try {
-    const res = await apiFetch(url, { method: "PUT", headers: {} });
- 
-    if (!res.ok) {
-      let msg = `Failed (${res.status})`;
-      try {
-        const errJson = await res.json();
-        msg = errJson.error || msg;
-      } catch {
-        const txt = await res.text();
-        if (txt) msg = txt;
-      }
-      throw new Error(msg);
-    }
-
-    showToast("Incident assigned successfully", "success");
-    clearAssignForm();
-    page = 0;
-    await refreshAll();
-  } catch (e) {
-    showToast(e.message || "Unable to assign incident.", "error");
   }
 }
 
@@ -1060,7 +1218,7 @@ async function updateIncidentStatus() {
 
     // ✅ force incident list + dashboard + chart reload
     page = 0;
-    await refreshAll();
+    await refreshAfterAction();
 
   } catch (e) {
     showToast(e.message || "Unable to update status.", "error");
@@ -1070,10 +1228,11 @@ async function updateIncidentStatus() {
 async function viewIncidentDetails(id) {
   try {
     const res = await apiFetch(`${API_BASE}/${id}`, { method: "GET", headers: {} });
+    
     if (!res.ok) throw new Error("Failed to fetch incident details");
 
     const i = await res.json();
-
+activeIncidentId = id;
     if (!modalBody) return;
 
     modalBody.innerHTML = `
@@ -1090,17 +1249,39 @@ async function viewIncidentDetails(id) {
       <p><strong>Reopen Reason:</strong> <span>${i.reopenReason ?? "-"}</span></p>
     `;
 
-    const commentsSection = document.getElementById("commentsSection");
     if (commentsSection) {
       commentsSection.dataset.incidentId = String(id);
+    }
+
+    if (timelineSection) {
+      timelineSection.dataset.incidentId = String(id);
     }
 
     const commentInput = document.getElementById("newComment");
     if (commentInput) {
       commentInput.value = "";
     }
-
+if (commentsContent) {
+  commentsContent.classList.remove("hidden");
+}
+if (toggleCommentsBtn) {
+  toggleCommentsBtn.textContent = "Hide";
+}
     await loadComments(id);
+    if (timelineContainer) {
+  timelineContainer.classList.remove("hidden");
+}
+if (toggleTimelineBtn) {
+  toggleTimelineBtn.textContent = "Hide";
+}
+if (detailsContent) {
+  detailsContent.classList.remove("hidden");
+}
+if (toggleDetailsBtn) {
+  toggleDetailsBtn.textContent = "Hide";
+}
+    await loadIncidentTimeline(id);
+
     openModal();
 
   } catch (e) {
@@ -1149,7 +1330,7 @@ async function saveEditedIncident() {
 
     showToast("Incident updated successfully", "success");
     closeEditModal();
-    await refreshAll();
+    await refreshAfterAction();
   } catch (e) {
     showToast(e.message || "Unable to update incident", "error");
   }
@@ -1177,9 +1358,14 @@ async function confirmDelete() {
     }
 
     showToast("Incident deleted successfully", "success");
-    closeDeleteModal();
-    page = 0;
-    await refreshAll();
+closeDeleteModal();
+
+if (String(activeIncidentId) === String(id)) {
+  closeModal();
+}
+
+page = 0;
+await refreshAfterAction();
   } catch (e) {
     showToast(e.message || "Unable to delete incident", "error");
   }
@@ -1285,12 +1471,35 @@ async function loadStatusChart() {
   } catch {}
 }
 
-
 async function refreshAll() {
   await loadIncidents();
   await loadDashboard();
   await loadStatusChart();
   await loadNotifications();
+  startAutoRefresh();
+  const el = document.getElementById("lastRefreshTime");
+  if (el) {
+    el.textContent = "Last updated: " + new Date().toLocaleTimeString();
+  }
+}
+let autoRefreshInterval = null;
+
+  function startAutoRefresh() {
+  if (autoRefreshInterval) return;
+
+  autoRefreshInterval = setInterval(async () => {
+    try {
+      // skip refresh if modal is open
+      if (incidentModal && !incidentModal.classList.contains("hidden")) {
+        return;
+      }
+
+      await refreshAll();
+      console.log("Auto-refreshed dashboard");
+    } catch (e) {
+      console.error("Auto refresh failed:", e);
+    }
+  }, 30000);
 }
 /* ---------- CSV export (optional if button exists) ---------- */
 function downloadCSV(filename, rows) {
@@ -1345,7 +1554,10 @@ async function exportIncidentsCSV() {
     showToast(e.message || "Export failed", "error");
   }
 }
-
+async function refreshAfterAction() {
+  await refreshAfterAction();
+  await refreshActiveModal();
+}
 async function exportDashboardCSV() {
   try {
     const res = await fetch(`${API_BASE}/dashboard`);
@@ -1383,7 +1595,9 @@ if (assignedSearch) {
 /* =========================
    Event bindings
    ========================= */
-
+if (toggleTimelineBtn) {
+  toggleTimelineBtn.addEventListener("click", toggleTimeline);
+}
 // Filters + Paging
 if (applyBtn) applyBtn.addEventListener("click", () => { page = 0; refreshAll(); });
 
@@ -1447,12 +1661,17 @@ if (showAllNotificationsBtn) {
     }
   });
 }
+if (toggleDetailsBtn) {
+  toggleDetailsBtn.addEventListener("click", toggleDetails);
+}
 // Modals
 if (closeModalBtn) closeModalBtn.addEventListener("click", closeModal);
 if (closeEditBtn) closeEditBtn.addEventListener("click", closeEditModal);
 if (cancelEditBtn) cancelEditBtn.addEventListener("click", closeEditModal);
 if (saveEditBtn) saveEditBtn.addEventListener("click", saveEditedIncident);
-
+if (toggleCommentsBtn) {
+  toggleCommentsBtn.addEventListener("click", toggleComments);
+}
 if (closeDeleteBtn) closeDeleteBtn.addEventListener("click", closeDeleteModal);
 if (cancelDeleteBtn) cancelDeleteBtn.addEventListener("click", closeDeleteModal);
 if (confirmDeleteBtn) confirmDeleteBtn.addEventListener("click", confirmDelete);
