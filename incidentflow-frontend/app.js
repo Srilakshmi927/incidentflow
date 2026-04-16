@@ -1552,6 +1552,33 @@ async function generateAiSummary() {
     showToast(e.message || "AI summary failed", "error");
   }
 }
+async function suggestPriority() {
+  if (!activeIncidentId) {
+    showToast("No incident selected", "error");
+    return;
+  }
+
+  try {
+    showToast("Analyzing priority...", "info");
+
+    const res = await apiFetch(`${API_BASE}/${activeIncidentId}/ai-priority`, {
+      method: "GET",
+      headers: {}
+    });
+
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(txt || "Failed to suggest priority");
+    }
+
+    const data = await res.json();
+
+    showToast(`Suggested Priority: ${data.priority}`, "success");
+
+  } catch (e) {
+    showToast(e.message || "AI priority failed", "error");
+  }
+}
 async function exportIncidentsCSV() {
   try {
     const status = statusFilter?.value || "";
@@ -1721,6 +1748,16 @@ if (exportBtn) exportBtn.addEventListener("click", exportIncidentsCSV);
 if (exportDashboardBtn) exportDashboardBtn.addEventListener("click", exportDashboardCSV);
 if (refreshChartBtn) refreshChartBtn.addEventListener("click", loadStatusChart);
 
+const suggestPriorityBtn = document.getElementById("suggestPriorityBtn");
+
+if (suggestPriorityBtn) {
+  suggestPriorityBtn.addEventListener("click", suggestPriority);
+}
+const prioritySelect = document.getElementById("editPriority");
+
+if (prioritySelect && data.priority) {
+  prioritySelect.value = data.priority;
+}
 /* =========================
    Initial load
    ========================= */

@@ -283,7 +283,20 @@ public void deleteIncident(Long id, String userRole) {
 
     repo.delete(incident);
 }
+public String suggestPriority(Long incidentId) {
+    Incident incident = repo.findById(incidentId)
+            .orElseThrow(() -> new RuntimeException("Incident not found"));
 
+    String text = (incident.getTitle() + " " + incident.getDescription()).toLowerCase();
+
+    if (text.contains("down") || text.contains("critical") || text.contains("failure") || text.contains("urgent")) {
+        return "HIGH";
+    } else if (text.contains("slow") || text.contains("error") || text.contains("issue")) {
+        return "MEDIUM";
+    } else {
+        return "LOW";
+    }
+}
 public String generateAiSummary(Long incidentId) {
     Incident incident = repo.findById(incidentId)
             .orElseThrow(() -> new RuntimeException("Incident not found"));

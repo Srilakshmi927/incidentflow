@@ -1,6 +1,7 @@
 package com.incidentflow.incidentflow.incident.controller;
 
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.incidentflow.incidentflow.common.enums.IncidentStatus;
 import com.incidentflow.incidentflow.common.enums.Priority;
+import com.incidentflow.incidentflow.incident.dto.AiSummaryResponse;
 import com.incidentflow.incidentflow.incident.dto.CreateIncidentRequest;
 import com.incidentflow.incidentflow.incident.dto.DashboardSummary;
 import com.incidentflow.incidentflow.incident.entity.Incident;
@@ -29,7 +31,7 @@ import com.incidentflow.incidentflow.incident.entity.IncidentActivity;
 import com.incidentflow.incidentflow.incident.entity.IncidentComment;
 import com.incidentflow.incidentflow.incident.entity.Notification;
 import com.incidentflow.incidentflow.incident.service.IncidentService;
-import com.incidentflow.incidentflow.incident.dto.AiSummaryResponse;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpSession;
@@ -168,7 +170,11 @@ public AiSummaryResponse getAiSummary(@PathVariable Long id) {
     String summary = service.generateAiSummary(id);
     return new AiSummaryResponse(summary);
 }
-
+@GetMapping("/{id}/ai-priority")
+public Map<String, String> getSuggestedPriority(@PathVariable Long id) {
+    String priority = service.suggestPriority(id);
+    return Map.of("priority", priority);
+}
 @GetMapping("/{id}/notifications")
 public List<Notification> getIncidentNotifications(@PathVariable Long id) {
     return service.getNotificationsByIncident(id);
