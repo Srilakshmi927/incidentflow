@@ -7,7 +7,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-
+import com.incidentflow.incidentflow.incident.dto.SimilarIncidentDto;
+import java.util.ArrayList;
+import java.util.List;
 import com.incidentflow.incidentflow.common.enums.IncidentStatus;
 import com.incidentflow.incidentflow.common.enums.Priority;
 import com.incidentflow.incidentflow.common.exception.BadRequestException;
@@ -68,6 +70,42 @@ public IncidentComment addComment(Long incidentId, String comment, String user) 
         case LOW -> now.plusHours(24);
         default -> now.plusHours(24);
     };
+}
+public List<SimilarIncidentDto> findSimilarIncidents(Long incidentId) {
+    Incident current = repo.findById(incidentId)
+            .orElseThrow(() -> new RuntimeException("Incident not found"));
+
+    String currentText = (current.getTitle() + " " + current.getDescription()).toLowerCase();
+
+    List<Incident> allIncidents = repo.findAll();
+    List<SimilarIncidentDto> result = new ArrayList<>();
+
+    for (Incident incident : allIncidents) {
+        if (incident.getId().equals(incidentId)) {
+            continue;
+        }
+
+        String otherText = (incident.getTitle() + " " + incident.getDescription()).toLowerCase();
+
+        int score = 0;
+
+        for (String word : currentText.split("\\s+")) {
+            if (word.length() > 3 && otherText.contains(word)) {
+                score++;
+            }
+        }
+
+        if (score >= 2) {
+            result.add(new SimilarIncidentDto(
+                    incident.getId(),
+                    incident.getTitle(),
+                    incident.getStatus().name(),
+                    incident.getPriority().name()
+            ));
+        }
+    }
+
+    return result.stream().limit(5).toList();
 }
 private void createNotification(Long incidentId, String message, String recipientRole) {
     Notification notification = new Notification();
@@ -296,6 +334,50 @@ public String suggestPriority(Long incidentId) {
     } else {
         return "LOW";
     }
+}
+public String suggestCategory(Long incidentId) {
+    Incident incident = repo.findById(incidentId)
+            .orElseThrow(() -> new RuntimeException("Incident not found"));
+
+    String text = (incident.getTitle() + " " + incident.getDescription()).toLowerCase();
+
+    if (text.contains("vpn") || text.contains("network") || text.contains("internet") || text.contains("wifi")) {
+        return "Network";
+    } else if (text.contains("login") || text.contains("password") || text.contains("access") || text.contains("permission")) {
+        return "Access";
+    } else if (text.contains("laptop") || text.contains("desktop") || text.contains("keyboard") || text.contains("monitor")) {
+        return "Hardware";
+    } else if (text.contains("application") || text.contains("software") || text.contains("bug") || text.contains("error")) {
+        return "Software";
+    } else if (text.contains("database") || text.contains("sql") || text.contains("data")) {
+        return "Database";
+    } else if (text.contains("email") || text.contains("outlook") || text.contains("mail")) {
+        return "Email";
+    } else if (text.contains("security") || text.contains("unauthorized") || text.contains("breach")) {
+        return "Security";
+    } else {
+        return "Other";
+    }
+}
+public String generateResolutionNote(Long incidentId) {
+    Incident incident = repo.findById(incidentId)
+            .orElseThrow(() -> new RuntimeException("Incident not found"));
+
+    List<IncidentComment> comments = commentRepo.findByIncidentIdOrderByCreatedAtAsc(incidentId);
+    List<Notification> history = notificationRepo.findByIncidentIdOrderByCreatedAtAsc(incidentId);
+
+    String latestComment = comments.isEmpty()
+            ? "No additional comments were recorded."
+            : comments.get(comments.size() - 1).getComment();
+
+    String latestHistory = history.isEmpty()
+            ? "No significant history available."
+            : history.get(history.size() - 1).getMessage();
+
+    return "Incident '" + incident.getTitle() + "' was addressed based on the reported issue details. "
+            + "Latest observation: " + latestComment + " "
+            + "Recent workflow activity: " + latestHistory + " "
+            + "The issue has been reviewed and appropriate corrective steps were completed successfully.";
 }
 public String generateAiSummary(Long incidentId) {
     Incident incident = repo.findById(incidentId)

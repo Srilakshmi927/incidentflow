@@ -476,3 +476,30 @@ tr:hover {
   line-height: 1.5;
   color: #dce6f5;
 }
+#aiResolutionSection h4 {
+  color: #f5f7fb;
+}
+
+#aiResolutionBox {
+  min-height: 60px;
+  line-height: 1.5;
+  color: #dce6f5;
+}
+#aiCategorySection h4 {
+  color: #f5f7fb;
+}
+
+#aiCategoryBox {
+  min-height: 50px;
+  line-height: 1.5;
+  color: #dce6f5;
+}
+#similarIncidentSection h4 {
+  color: #f5f7fb;
+}
+
+#similarIncidentBox {
+  min-height: 50px;
+  line-height: 1.5;
+  color: #dce6f5;
+}

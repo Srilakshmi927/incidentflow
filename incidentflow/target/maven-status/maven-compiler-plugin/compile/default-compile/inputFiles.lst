@@ -11,6 +11,7 @@ D:\incidentflow\incidentflow\src\main\java\com\incidentflow\incidentflow\inciden
 D:\incidentflow\incidentflow\src\main\java\com\incidentflow\incidentflow\incident\dto\AssignIncidentRequest.java
 D:\incidentflow\incidentflow\src\main\java\com\incidentflow\incidentflow\incident\dto\CreateIncidentRequest.java
 D:\incidentflow\incidentflow\src\main\java\com\incidentflow\incidentflow\incident\dto\DashboardSummary.java
+D:\incidentflow\incidentflow\src\main\java\com\incidentflow\incidentflow\incident\dto\SimilarIncidentDto.java
 D:\incidentflow\incidentflow\src\main\java\com\incidentflow\incidentflow\incident\dto\UpdateStatusRequest.java
 D:\incidentflow\incidentflow\src\main\java\com\incidentflow\incidentflow\incident\entity\Incident.java
 D:\incidentflow\incidentflow\src\main\java\com\incidentflow\incidentflow\incident\entity\IncidentActivity.java

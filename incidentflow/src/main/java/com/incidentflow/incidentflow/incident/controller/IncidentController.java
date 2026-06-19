@@ -36,7 +36,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
-
+import com.incidentflow.incidentflow.incident.dto.SimilarIncidentDto;
+import java.util.List;
 @Tag(name = "Incidents", description = "IncidentFlow APIs for creating, assigning, updating, and retrieving incidents")
 @RestController
 @RequestMapping("/api/incidents")
@@ -67,8 +68,11 @@ public class IncidentController {
     public Incident create(@Valid @RequestBody CreateIncidentRequest req) {
         return service.createIncident(req);
     }
-
-    @Operation(summary = "Assign an incident", description = "Assigns an incident to a user. Only ADMIN or SUPPORT roles are allowed.")
+@GetMapping("/{id}/similar")
+public List<SimilarIncidentDto> getSimilarIncidents(@PathVariable Long id) {
+    return service.findSimilarIncidents(id);
+}
+@Operation(summary = "Assign an incident", description = "Assigns an incident to a user. Only ADMIN or SUPPORT roles are allowed.")
 @PutMapping("/{id}/assign")
 public Incident assignIncident(@PathVariable Long id,
                                @RequestParam String assignedTo,
@@ -169,6 +173,16 @@ public List<Notification> getRecentNotifications() {
 public AiSummaryResponse getAiSummary(@PathVariable Long id) {
     String summary = service.generateAiSummary(id);
     return new AiSummaryResponse(summary);
+}
+@GetMapping("/{id}/ai-category")
+public Map<String, String> getSuggestedCategory(@PathVariable Long id) {
+    String category = service.suggestCategory(id);
+    return Map.of("category", category);
+}
+@GetMapping("/{id}/ai-resolution-note")
+public Map<String, String> getAiResolutionNote(@PathVariable Long id) {
+    String note = service.generateResolutionNote(id);
+    return Map.of("resolutionNote", note);
 }
 @GetMapping("/{id}/ai-priority")
 public Map<String, String> getSuggestedPriority(@PathVariable Long id) {

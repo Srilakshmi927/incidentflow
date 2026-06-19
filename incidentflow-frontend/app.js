@@ -27,7 +27,8 @@ const titleSearch = document.getElementById("titleSearch");
 const alertBox = document.getElementById("alert");
 const loading = document.getElementById("loading");
 const empty = document.getElementById("empty");
-
+const findSimilarBtn = document.getElementById("findSimilarBtn");
+const similarIncidentBox = document.getElementById("similarIncidentBox");
 /* Create */
 const createForm = document.getElementById("createForm");
 const titleInput = document.getElementById("titleInput");
@@ -63,6 +64,8 @@ const editId = document.getElementById("editId");
 const editTitle = document.getElementById("editTitle");
 const editDescription = document.getElementById("editDescription");
 const editPriority = document.getElementById("editPriority");
+const generateResolutionBtn = document.getElementById("generateResolutionBtn");
+const aiResolutionBox = document.getElementById("aiResolutionBox");
 
 const detailUpdatedBy = document.getElementById("editUpdatedBy");
 const detailUpdatedAt = document.getElementById("editUpdatedAt");
@@ -110,6 +113,8 @@ const toggleTimelineBtn = document.getElementById("toggleTimelineBtn");
 const toggleCommentsBtn = document.getElementById("toggleCommentsBtn");
 const commentsContent = document.getElementById("commentsContent");
 const recentToggle = document.getElementById("recentOnlyToggle");
+const suggestCategoryBtn = document.getElementById("suggestCategoryBtn");
+const aiCategoryBox = document.getElementById("aiCategoryBox");
 
 if (recentToggle) {
   recentToggle.addEventListener("change", async (e) => {
@@ -189,8 +194,105 @@ function applyRoleBasedUI() {
     if (statusSection) statusSection.classList.add("hidden");
   }
 }
+async function findSimilarIncidents() {
+  if (!activeIncidentId) {
+    showToast("No active incident selected", "error");
+    return;
+  }
 
+  if (!similarIncidentBox) return;
 
+  try {
+    similarIncidentBox.textContent = "Finding similar incidents...";
+
+    const res = await apiFetch(`${API_BASE}/${activeIncidentId}/similar`, {
+      method: "GET",
+      headers: {}
+    });
+
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(txt || "Failed to find similar incidents");
+    }
+
+    const items = await res.json();
+
+    if (!items || items.length === 0) {
+      similarIncidentBox.textContent = "No similar incidents found.";
+      return;
+    }
+
+    similarIncidentBox.innerHTML = items.map(item => `
+      <div style="margin-bottom:8px;">
+        <strong>#${item.id}</strong> - ${item.title}<br>
+        <small>Status: ${item.status} | Priority: ${item.priority}</small>
+      </div>
+    `).join("");
+
+  } catch (e) {
+    similarIncidentBox.textContent = "Unable to find similar incidents.";
+    showToast(e.message || "Similar incident search failed", "error");
+  }
+}
+
+async function generateResolutionNote() {
+  if (!activeIncidentId) {
+    showToast("No active incident selected", "error");
+    return;
+  }
+
+  if (!aiResolutionBox) return;
+
+  try {
+    aiResolutionBox.textContent = "Generating AI resolution note...";
+
+    const res = await apiFetch(`${API_BASE}/${activeIncidentId}/ai-resolution-note`, {
+      method: "GET",
+      headers: {}
+    });
+
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(txt || "Failed to generate resolution note");
+    }
+
+    const data = await res.json();
+    aiResolutionBox.textContent = data.resolutionNote || "No resolution note returned.";
+
+  } catch (e) {
+    aiResolutionBox.textContent = "Unable to generate AI resolution note.";
+    showToast(e.message || "AI resolution note failed", "error");
+  }
+}
+async function suggestCategory() {
+  if (!activeIncidentId) {
+    showToast("No active incident selected", "error");
+    return;
+  }
+
+  if (!aiCategoryBox) return;
+
+  try {
+    aiCategoryBox.textContent = "Generating AI category suggestion...";
+
+    const res = await apiFetch(`${API_BASE}/${activeIncidentId}/ai-category`, {
+      method: "GET",
+      headers: {}
+    });
+
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(txt || "Failed to suggest category");
+    }
+
+    const data = await res.json();
+    aiCategoryBox.textContent = data.category || "No category returned.";
+
+  } catch (e) {
+    aiCategoryBox.textContent = "Unable to generate AI category suggestion.";
+    showToast(e.message || "AI category suggestion failed", "error");
+  }
+}
 async function loadNotifications() {
   if (!notificationsContainer) return;
 
@@ -1238,6 +1340,15 @@ activeIncidentId = id;
 if (aiSummaryBox) {
   aiSummaryBox.textContent = "No AI summary generated yet.";
 }
+if (aiResolutionBox) {
+  aiResolutionBox.textContent = "No AI resolution note generated yet.";
+}
+if (aiCategoryBox) {
+  aiCategoryBox.textContent = "No AI category suggested yet.";
+}
+if (similarIncidentBox) {
+  similarIncidentBox.textContent = "No similar incidents suggested yet.";
+}
     if (!modalBody) return;
 
     modalBody.innerHTML = `
@@ -1672,6 +1783,9 @@ if (titleSearch) {
 if (generateAiSummaryBtn) {
   generateAiSummaryBtn.addEventListener("click", generateAiSummary);
 }
+if (generateResolutionBtn) {
+  generateResolutionBtn.addEventListener("click", generateResolutionNote);
+}
 
 if (resetBtn) applyBtn?.addEventListener && resetBtn.addEventListener("click", () => {
   if (statusFilter) statusFilter.value = "";
@@ -1727,6 +1841,9 @@ if (showAllNotificationsBtn) {
 if (toggleDetailsBtn) {
   toggleDetailsBtn.addEventListener("click", toggleDetails);
 }
+if (findSimilarBtn) {
+  findSimilarBtn.addEventListener("click", findSimilarIncidents);
+}
 // Modals
 if (closeModalBtn) closeModalBtn.addEventListener("click", closeModal);
 if (closeEditBtn) closeEditBtn.addEventListener("click", closeEditModal);
@@ -1752,6 +1869,9 @@ const suggestPriorityBtn = document.getElementById("suggestPriorityBtn");
 
 if (suggestPriorityBtn) {
   suggestPriorityBtn.addEventListener("click", suggestPriority);
+}
+if (suggestCategoryBtn) {
+  suggestCategoryBtn.addEventListener("click", suggestCategory);
 }
 const prioritySelect = document.getElementById("editPriority");
 
